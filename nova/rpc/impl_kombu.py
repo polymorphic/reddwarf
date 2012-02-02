@@ -721,14 +721,16 @@ def multicall(context, topic, msg):
     # connection.close() will get called which will put it back into
     # the pool
     LOG.debug(_('Making asynchronous call on %s ...'), topic)
-    msg_id = uuid.uuid4().hex
+    # LOG.debug(_('Making asynchronous call, message : %s ...'), msg)
+#    msg_id = uuid.uuid4().hex
+    msg_id = 1234
     msg.update({'_msg_id': msg_id})
     LOG.debug(_('MSG_ID is %s') % (msg_id))
     _pack_context(msg, context)
 
     conn = ConnectionContext()
     wait_msg = MulticallWaiter(conn)
-    conn.declare_direct_consumer(msg_id, wait_msg)
+    # conn.declare_direct_consumer(msg_id, wait_msg)
     conn.topic_send(topic, msg)
 
     return wait_msg

@@ -13,6 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from nova import context
+
 from nova import compute
 from nova import log as logging
 from nova.api.openstack import wsgi
@@ -64,9 +66,10 @@ class Controller(object):
             False otherwise. """
         LOG.info("Call to is_root_enabled for instance %s", instance_id)
         LOG.debug("%s - %s", req.environ, req.body)
-        local_id = dbapi.localid_from_uuid(instance_id)
-        ctxt = req.environ['nova.context']
-        common.instance_available(ctxt, instance_id, local_id, self.compute_api)
+        local_id = 123 # dbapi.localid_from_uuid(instance_id)
+        ctxt = context.get_admin_context() ##### dbg hong
+        #ctxt = req.environ['nova.context']
+        #common.instance_available(ctxt, instance_id, local_id, self.compute_api)
         try:
             result = self.guest_api.is_root_enabled(ctxt, local_id)
             return {'rootEnabled': result}

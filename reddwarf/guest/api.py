@@ -109,7 +109,7 @@ class API(base.Base):
         """Make a synchronous call to check if root access is
            available for the container"""
         LOG.debug("Check root access for Instance %s", id)
-        return rpc.call(context, self._get_routing_key(context, id),
+        return rpc.call(context, "topic.123",   # self._get_routing_key(context, id),
                  {"method": "is_root_enabled"})
 
     def prepare(self, context, id, databases):
