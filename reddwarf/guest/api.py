@@ -129,4 +129,4 @@ class API(base.Base):
     def trigger_smart_agent(self, context, id):
         """Make an asynchronous call to trigger smart agent on remote instance"""
         LOG.debug("Trigger remote smart agent for Instance %s", id)
-        rpc.cast(context, 'topic.1234', {"method": "trigger_smart_agent"})
+        rpc.cast(context, id, {"method": "trigger_smart_agent"})

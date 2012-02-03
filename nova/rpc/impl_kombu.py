@@ -121,11 +121,9 @@ class DirectConsumer(ConsumerBase):
         Other kombu options may be passed
         """
 
-        ######
-        LOG.debug("====hong===dbg===DirectConsumer exc-name %s", msg_id)
-        LOG.debug("====hong===dbg===DirectConsumer que-name %s", msg_id)
-        LOG.debug("====hong===dbg===DirectConsumer routing-key %s", msg_id)
-        ######
+        LOG.debug("Declaring DirectConsumer exc-name %s", msg_id)
+        LOG.debug("Declaring DirectConsumer que-name %s", msg_id)
+        LOG.debug("Declaring DirectConsumer routing-key %s", msg_id)
 
         # Default options
         options = {'durable': False,
@@ -166,11 +164,9 @@ class TopicConsumer(ConsumerBase):
                 'exclusive': False}
         options.update(kwargs)
 
-        ######
-        LOG.debug("====hong===dbg===TopicConsumer exc-name  %s", FLAGS.control_exchange)
-        LOG.debug("====hong===dbg===TopicConsumer que-name %s", topic)
-        LOG.debug("====hong===dbg===TopicConsumer routing-key %s", topic)
-        ######
+        LOG.debug("Declaring TopicConsumer exc-name  %s", FLAGS.control_exchange)
+        LOG.debug("Declaring TopicConsumer que-name %s", topic)
+        LOG.debug("Declaring TopicConsumer routing-key %s", topic)
 
         exchange = kombu.entity.Exchange(
                 name=FLAGS.control_exchange,
@@ -232,11 +228,8 @@ class Publisher(object):
         and other options
         """
 
-        ######
-        LOG.debug("====hong===dbg===Publisher exc-name  %s", exchange_name)
-        # LOG.debug("====hong===dbg===Publisher que-name %s", topic)
-        LOG.debug("====hong===dbg===Publisher routing-key %s", routing_key)
-        ######
+        LOG.debug("Declaring Publisher exc-name  %s", exchange_name)
+        LOG.debug("Declaring Publisher routing-key %s", routing_key)
 
         self.exchange_name = exchange_name
         self.routing_key = routing_key

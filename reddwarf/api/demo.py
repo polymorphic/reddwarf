@@ -20,9 +20,9 @@ class Controller(object):
         """ Returns True if root is enabled for the given instance;
             False otherwise. """
         LOG.info("Call to demo for instance %s", instance_id)
-        ctxt2 = context.get_admin_context()
+        ctxt = context.get_admin_context()
         try:
-            self.guest_api.trigger_smart_agent(ctxt2, instance_id)
+            self.guest_api.trigger_smart_agent(ctxt, instance_id)
             return {'status': 'done'}
         except Exception as err:
             LOG.error(err)
