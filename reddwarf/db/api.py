@@ -21,6 +21,7 @@ import datetime
 from nova import exception
 from nova import flags
 from nova import log as logging
+from nova import utils
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import func
 from sqlalchemy.sql import text
@@ -118,7 +119,33 @@ def guest_status_delete(instance_id):
                         'deleted_at': datetime.datetime.utcnow(),
                         'state': state,
                         'state_description': power_state.name(state)})
+                
+def instance_create(server):
+    """Creates an instance record """
+    LOG.debug("instance_create id = %s" % str(server.id))
+    
+    from nova.db.sqlalchemy import models as nova_models
 
+    instance = nova_models.Instance()
+    
+    instance.update({'created_at': utils.utf8(server.created),
+                     'internal_id': server.id,
+                     'user_id': utils.utf8(server.user_id),
+                     'project_id': utils.utf8(server.tenant_id),
+                     'image_ref': server.image['id'],
+                     'server_name': utils.utf8(server.name),
+                     'host': utils.utf8(server.hostId),
+                     'key_name': server.key_name,
+                     'uuid': utils.utf8(server.uuid),
+                     'access_ip_v4': utils.utf8(server.accessIPv4),
+                     'access_ip_v6': utils.utf8(server.accessIPv6)})
+
+    session = get_session()
+    with session.begin():
+        instance.save(session=session)
+    
+    return instance
+    
 @require_admin_context
 def show_instances_on_host(context, id):
     """Show all the instances that are on the given host id."""

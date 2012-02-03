@@ -38,6 +38,7 @@ from reddwarf.api import storage
 from reddwarf.api import users
 from reddwarf.api import flavors
 from reddwarf.api import versions
+from reddwarf.api import demo
 
 LOG = logging.getLogger('reddwarf.api')
 FLAGS = flags.FLAGS
@@ -172,6 +173,11 @@ class APIRouter(wsgi.Router):
         mapper.connect("/{project_id}/instances/{instance_id}/root",
                        controller=root.create_resource(),
                        action="is_root_enabled", conditions=dict(method=["GET"]))
+
+        ## demo for e2e API-MQ-Agent
+        mapper.connect("/{project_id}/instances/{instance_id}/smartagent",
+                       controller=demo.create_resource(),
+                       action="trigger_smart_agent", conditions=dict(method=["GET"]))
 
         mapper.connect("/", controller=versions.create_resource(),
                        action="dispatch")
