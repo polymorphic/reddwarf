@@ -270,6 +270,10 @@ DEFINE_list('region_list',
 DEFINE_string('connection_type', 'libvirt', 'libvirt, xenapi or fake')
 DEFINE_string('aws_access_key_id', 'admin', 'AWS Access ID')
 DEFINE_string('aws_secret_access_key', 'admin', 'AWS Access Key')
+DEFINE_string('novaclient_account_id', 'admin', 'Novaclient Account ID')
+DEFINE_string('novaclient_access_key', 'admin', 'Novaclient Access Key')
+DEFINE_string('novaclient_project_id', 'admin', 'Novaclient Project ID')
+
 # NOTE(sirp): my_ip interpolation doesn't work within nested structures
 DEFINE_list('glance_api_servers',
             ['%s:9292' % _get_my_ip()],

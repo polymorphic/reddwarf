@@ -35,3 +35,6 @@ integration/.noseids
 host.Dummy*
 integration/vagrant/report/*
 .venv
+.project
+.pydevproject
+networks/

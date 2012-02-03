@@ -3,17 +3,17 @@
 # Copyright 2010 OpenStack LLC.
 # All Rights Reserved.
 #
-#    Licensed under the Apache License, Version 2.0 (the "License"); you may
-#    not use this file except in compliance with the License. You may obtain
-#    a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
 #
-#         http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-#    License for the specific language governing permissions and limitations
-#    under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 
 import copy
 import json
@@ -42,6 +42,7 @@ from reddwarf.api import deserializer
 from reddwarf.api.views import instances
 from reddwarf.db import api as dbapi
 from reddwarf.guest import api as guest_api
+from reddwarf.client import osclient
 
 
 LOG = logging.getLogger('reddwarf.api.instances')
@@ -50,13 +51,13 @@ LOG.setLevel(logging.DEBUG)
 
 FLAGS = flags.FLAGS
 #flags.DEFINE_string('reddwarf_mysql_data_dir', '/var/lib/mysql',
-#                    'Mount point within the instance for MySQL data.')
+# 'Mount point within the instance for MySQL data.')
 #flags.DEFINE_string('reddwarf_volume_description',
-#                    'Volume ID: %s assigned to Instance: %s',
-#                    'Default description populated for volumes')
+# 'Volume ID: %s assigned to Instance: %s',
+# 'Default description populated for volumes')
 #flags.DEFINE_integer('reddwarf_max_accepted_volume_size', 128,
-#                    'Maximum accepted volume size (in gigabytes) when creating'
-#                    ' an instance.')
+# 'Maximum accepted volume size (in gigabytes) when creating'
+# ' an instance.')
 
 
 def publisher_id(host=None):
@@ -72,22 +73,26 @@ class ControllerV2(object):
         self.server_controller = servers.ControllerV11()
         self.volume_api = volume.API()
         self.view = instances.ViewBuilder()
+        self.client = osclient.OSClient(FLAGS.novaclient_account_id,
+            FLAGS.novaclient_access_key,
+            FLAGS.novaclient_project_id,
+            'https://az-2.region-a.geo-1.compute.hpcloudsvc.com/v1.1/')
         super(ControllerV2, self).__init__()
 
     def index(self, req):
         """ Returns a list of instance names and ids for a given user """
         LOG.info("Call to Instances index")
         LOG.debug("%s - %s", req.environ, req.body)
-        
-        
+
+
         # Insert Novaclient
         from novaclient.v1_1 import client
         try:
-            nt = client.Client("96502514363456", "Ptgj3Y5UzJlypS9oVwOL1eMkd9K5VlRmh3E", "38728063898723", "https://az-2.region-a.geo-1.compute.hpcloudsvc.com/v1.1/")
+            nt = client.Client(self, "CHANGEME", "CHANGEME", "CHANGEME", "https://az-2.region-a.geo-1.compute.hpcloudsvc.com/v1.1/")
             server_list = nt.flavors.list()
         except:
             print "AAAAAAAA"
-        
+
         #servers_respose = self.server_controller.index(req)
         #server_list = servers_response['servers']
         context = req.environ['nova.context']
@@ -95,14 +100,14 @@ class ControllerV2(object):
         # Instances need the status for each instance in all circumstances,
         # unlike servers.
         server_states = db.instance_state_get_all_filtered(context)
-#        for server in server_list:
-#            state = server_states[server['id']]
-#            server['status'] = nova_common.status_from_state(state)
-        
+        # for server in server_list:
+        # state = server_states[server['id']]
+        # server['status'] = nova_common.status_from_state(state)
+
         id_list = [server['id'] for server in server_list.list()]
         guest_state_mapping = self.get_guest_state_mapping(id_list)
         instances = [self.view.build_index(server, req, guest_state_mapping)
-                        for server in server_list]
+                     for server in server_list]
         return {'instances': instances}
 
     def detail(self, req):
@@ -112,10 +117,10 @@ class ControllerV2(object):
         id_list = [server['id'] for server in server_list]
         guest_state_mapping = self.get_guest_state_mapping(id_list)
         instances = [self.view.build_detail(server, req, guest_state_mapping)
-                            for server in server_list]
+                     for server in server_list]
         return {'instances': instances}
 
-    def show(self, req, id):
+    def xshow(self, req, id):
         """ Returns instance details by instance id """
         LOG.info("Get Instance by ID - %s", id)
         LOG.debug("%s - %s", req.environ, req.body)
@@ -123,7 +128,7 @@ class ControllerV2(object):
         LOG.debug("Local ID: " + str(instance_id))
         server_response = self.server_controller.show(req, instance_id)
         if isinstance(server_response, Exception):
-            return server_response  # Just return the exception to throw it
+            return server_response # Just return the exception to throw it
         context = req.environ['nova.context']
         server = server_response['server']
 
@@ -132,12 +137,39 @@ class ControllerV2(object):
         root_enabled = None
         if guest_state:
             databases, root_enabled = self._get_guest_info(context, server['id'],
-                                                      guest_state[server['id']])
+                guest_state[server['id']])
         instance = self.view.build_single(server,
-                                          req,
-                                          guest_state,
-                                          databases=databases,
-                                          root_enabled=root_enabled)
+            req,
+            guest_state,
+            databases=databases,
+            root_enabled=root_enabled)
+        LOG.debug("instance - %s" % instance)
+        return {'instance': instance}
+
+    def show(self, req, id):
+        """ Returns instance details by instance id """
+        LOG.info("Get Instance by ID - %s", id)
+        LOG.debug("%s - %s", req.environ, req.body)
+        instance_id = dbapi.localid_from_uuid(id)
+        LOG.debug("Local ID: " + str(instance_id))
+        #server_response = self.server_controller.show(req, instance_id)
+        server_response = self.client.show(id)
+        if isinstance(server_response, Exception):
+            return server_response # Just return the exception to throw it
+        context = req.environ['nova.context']
+        #server = server_response['server']
+
+        guest_state = self.get_guest_state_mapping([server_response.id])
+        databases = None
+        root_enabled = None
+        if guest_state:
+            databases, root_enabled = self._get_guest_info(context, server_response.id,
+                guest_state[server_response.id])
+        instance = self.view.build_single(server_response,
+            req,
+            guest_state,
+            databases=databases,
+            root_enabled=root_enabled)
         LOG.debug("instance - %s" % instance)
         return {'instance': instance}
 
@@ -167,28 +199,28 @@ class ControllerV2(object):
             raise exception.NotFound()
         LOG.debug("server_response - %s", compute_response)
         build_states = [
-             nova_common.vm_states.REBUILDING,
-             nova_common.vm_states.BUILDING,
-        ]
+            nova_common.vm_states.REBUILDING,
+            nova_common.vm_states.BUILDING,
+            ]
         if compute_response['vm_state'] in build_states:
             # what if guest_state is failed and vm_state is still building
             # need to be able to delete instance still
             deletable_states = [
                 power_state.FAILED,
-            ]
+                ]
             status = dbapi.guest_status_get(instance_id).state
             if not status in deletable_states:
                 LOG.debug("guest status(%s) will not allow delete" % status)
                 # If the state is building then we throw an exception back
                 raise exception.UnprocessableEntity("Instance %s is not ready."
-                                                    % id)
+                % id)
 
         self.server_controller.delete(req, instance_id)
         #TODO(rnirmal): Use a deferred here to update status
         dbapi.guest_status_delete(instance_id)
         return exc.HTTPAccepted()
 
-    def create(self, req, body):
+    def xcreate(self, req, body):
         """ Creates a new Instance for a given user """
         self._validate(body)
 
@@ -201,12 +233,12 @@ class ControllerV2(object):
         volume_ref = self.create_volume(context, body)
         # Setup Security groups
         self._setup_security_groups(context,
-                                    FLAGS.default_firewall_rule_name,
-                                    FLAGS.default_guest_mysql_port)
+            FLAGS.default_firewall_rule_name,
+            FLAGS.default_guest_mysql_port)
 
         server = self._create_server_dict(body['instance'],
-                                          volume_ref['id'],
-                                          FLAGS.reddwarf_mysql_data_dir)
+            volume_ref['id'],
+            FLAGS.reddwarf_mysql_data_dir)
 
         # Add any extra data that's required by the servers api
         server_req_body = {'server':server}
@@ -217,11 +249,58 @@ class ControllerV2(object):
 
         guest_state = self.get_guest_state_mapping([local_id])
         instance = self.view.build_single(server_resp['server'], req,
-                                          guest_state, create=True)
+            guest_state, create=True)
 
         # add the volume information to response
         LOG.debug("adding the volume information to the response...")
         instance['volume'] = {'size': volume_ref['size']}
+        return { 'instance': instance }
+
+    def create(self, req, body):
+        """ Creates a new Instance for a given user """
+        self._validate(body)
+
+        LOG.info("Create Instance")
+        LOG.debug("%s - %s", req.environ, body)
+
+        context = req.environ['nova.context']
+        LOG.debug(" BODY Instance Name: " + body['instance']['name'])
+        instance_name = body['instance']['name']
+
+
+        # Create the Volume before hand
+        # volume_ref = self.create_volume(context, body)
+        # # Setup Security groups
+        # self._setup_security_groups(context,
+        # FLAGS.default_firewall_rule_name,
+        # FLAGS.default_guest_mysql_port)
+        #
+        # server = self._create_server_dict(body['instance'],
+        # volume_ref['id'],
+        # FLAGS.reddwarf_mysql_data_dir)
+
+        # Add any extra data that's required by the servers api
+        #server_req_body = {'server':server}
+        server_resp = self._try_create_server(req, instance_name)
+        #LOG.debug("Server_Response type: " + server_resp.getid(server_resp))
+        from inspect import getmembers
+        for name,thing in getmembers(server_resp):
+            LOG.debug(" ----- " + str(name) + " : " + str(thing) )
+
+        instance_id = server_resp.uuid
+        local_id = str(server_resp.id)
+
+        LOG.info("Created server with uuid: " + instance_id + " and local id: " + local_id)
+        dbapi.instance_create(server_resp)
+        dbapi.guest_status_create(local_id)
+
+        guest_state = self.get_guest_state_mapping([local_id])
+        instance = self.view.build_single(server_resp, req,
+            guest_state, create=True)
+
+        # add the volume information to response
+        LOG.debug("adding the volume information to the response...")
+        #instance['volume'] = {'size': volume_ref['size']}
         return { 'instance': instance }
 
     @staticmethod
@@ -237,27 +316,52 @@ class ControllerV2(object):
         description = FLAGS.reddwarf_volume_description % (None, None)
 
         return self.volume_api.create(context, size=volume_size,
-                                      snapshot_id=None,
-                                      name=name,
-                                      description=description)
+            snapshot_id=None,
+            name=name,
+            description=description)
 
-    def _try_create_server(self, req, body):
+    def X_try_create_server(self, req, body):
         """Handle the call to create a server through the openstack servers api.
 
-        Separating this so we could do retries in the future and other
-        processing of the result etc.
-        """
+Separating this so we could do retries in the future and other
+processing of the result etc.
+"""
         try:
             server = self.server_controller.create(req, body)
-            if not server or isinstance(server, faults.Fault) \
-                          or isinstance(server, exc.HTTPClientError):
+            if not server or isinstance(server, faults.Fault)\
+            or isinstance(server, exc.HTTPClientError):
                 if isinstance(server, faults.Fault):
                     LOG.error("%s: %s", server.wrapped_exc,
-                              server.wrapped_exc.detail)
+                        server.wrapped_exc.detail)
                 if isinstance(server, exc.HTTPClientError):
                     LOG.error("a 400 error occurred %s" % server)
                 raise exception.InstanceFault("Could not complete the request."
-                          " Please try again later or contact Customer Support")
+                                              " Please try again later or contact Customer Support")
+            return server
+        except (TypeError, AttributeError, KeyError) as e:
+            LOG.error(e)
+            raise exception.UnprocessableEntity()
+
+    def _try_create_server(self, req, instance_name):
+        """Handle the call to create a server through novaclient.
+
+Separating this so we could do retries in the future and other
+processing of the result etc.
+"""
+        try:
+
+            server = self.client.create(instance_name, '227', '101')
+
+            #server = self.server_controller.create(req, body)
+            if not server or isinstance(server, faults.Fault)\
+            or isinstance(server, exc.HTTPClientError):
+                if isinstance(server, faults.Fault):
+                    LOG.error("%s: %s", server.wrapped_exc,
+                        server.wrapped_exc.detail)
+                if isinstance(server, exc.HTTPClientError):
+                    LOG.error("a 400 error occurred %s" % server)
+                raise exception.InstanceFault("Could not complete the request."
+                                              " Please try again later or contact Customer Support")
             return server
         except (TypeError, AttributeError, KeyError) as e:
             LOG.error(e)
@@ -272,13 +376,13 @@ class ControllerV2(object):
         try:
             server['imageRef'] = dbapi.config_get("reddwarf_imageref").value
         except nova_exception.ConfigNotFound:
-            msg = "Cannot find the reddwarf_imageref config value, " \
+            msg = "Cannot find the reddwarf_imageref config value, "\
                   "using default of 1"
             LOG.warn(msg)
             notifier.notify(publisher_id(), "reddwarf.image", notifier.WARN,
-                            msg)
+                msg)
             server['imageRef'] = 1
-        # Add security groups
+            # Add security groups
         security_groups = [{'name': FLAGS.default_firewall_rule_name}]
         server['security_groups'] = security_groups
         # Add volume id
@@ -297,21 +401,21 @@ class ControllerV2(object):
     def _setup_security_groups(self, context, group_name, port):
         """ Setup a default firewall rule for reddwarf.
 
-        We are using the existing infrastructure of security groups in nova
-        used by the ec2 api and piggy back on it. Reddwarf by default will have
-        one rule which will allow access to the specified tcp port, the default
-        being 3306 from anywhere. For this the group_id and parent_id are the
-        same, we are not doing any hierarchical rules yet.
-        Here's how it would look in iptables.
+We are using the existing infrastructure of security groups in nova
+used by the ec2 api and piggy back on it. Reddwarf by default will have
+one rule which will allow access to the specified tcp port, the default
+being 3306 from anywhere. For this the group_id and parent_id are the
+same, we are not doing any hierarchical rules yet.
+Here's how it would look in iptables.
 
-        -A nova-compute-inst-<id> -p tcp -m tcp --dport 3306 -j ACCEPT
-        """
+-A nova-compute-inst-<id> -p tcp -m tcp --dport 3306 -j ACCEPT
+"""
         self.compute_api.ensure_default_security_group(context)
 
         if not db.security_group_exists(context, context.project_id,
-                                        group_name):
+            group_name):
             LOG.debug('Creating a new firewall rule %s for project %s'
-                        % (group_name, context.project_id))
+            % (group_name, context.project_id))
             values = {'name': group_name,
                       'description': group_name,
                       'user_id': context.user_id,
@@ -325,7 +429,7 @@ class ControllerV2(object):
                      'to_port': port}
             db.security_group_rule_create(context, rules)
             self.compute_api.trigger_security_group_rules_refresh(context,
-                                                          security_group['id'])
+                security_group['id'])
 
     def _get_guest_info(self, context, id, state):
         """Get the list of databases on a instance"""
@@ -335,15 +439,15 @@ class ControllerV2(object):
                 result = self.guest_api.list_databases(context, id)
                 LOG.debug("LIST DATABASES RESULT - %s", str(result))
                 databases = [{'name': db['_name'],
-                             'collate': db['_collate'],
-                             'character_set': db['_character_set']}
-                             for db in result]
+                              'collate': db['_collate'],
+                              'character_set': db['_character_set']}
+                for db in result]
                 root_enabled = self.guest_api.is_root_enabled(context, id)
                 return databases, root_enabled
             except Exception as err:
                 LOG.error(err)
                 LOG.error("guest not responding on instance %s" % id)
-        #TODO(cp16net) we have hidden the actual exception by returning [],None
+            #TODO(cp16net) we have hidden the actual exception by returning [],None
         return [], None
 
     @staticmethod
@@ -361,16 +465,16 @@ class ControllerV2(object):
                 LOG.error("Create Instance Required field(s) - "
                           "['instance']['volume']['size']")
                 raise exception.BadRequest("Required element/key - instance "
-                                "volume 'size' was not specified as a number")
+                                           "volume 'size' was not specified as a number")
             if int(volume_size) != volume_size or int(volume_size) < 1:
                 raise exception.BadRequest("Volume 'size' needs to be a "
-                                "positive integer value, %s cannot be accepted."
-                                % volume_size)
+                                           "positive integer value, %s cannot be accepted."
+                % volume_size)
             max_size = FLAGS.reddwarf_max_accepted_volume_size
             if int(volume_size) > max_size:
                 raise exception.BadRequest("Volume 'size' cannot exceed maximum "
                                            "of %d Gb, %s cannot be accepted."
-                                           % (max_size, volume_size))
+                % (max_size, volume_size))
         except KeyError as e:
             LOG.error("Create Instance Required field(s) - %s" % e)
             raise exception.BadRequest("Required element/key - %s was not "
@@ -380,7 +484,7 @@ class ControllerV2(object):
 def create_resource(version='1.0'):
     controller = {
         '1.0': ControllerV2,
-    }[version]()
+        }[version]()
 
     metadata = {
         'attributes': {
@@ -391,23 +495,23 @@ def create_resource(version='1.0'):
             'link': ['rel', 'href'],
             'volume': ['size'],
             'database': ['name', 'collate', 'character_set'],
-        },
-    }
+            },
+        }
 
     xmlns = {
         '1.0': common.XML_NS_V10,
-    }[version]
+        }[version]
 
     serializers = {
         'application/xml': wsgi.XMLDictSerializer(metadata=metadata,
-                                                  xmlns=xmlns),
-    }
+            xmlns=xmlns),
+        }
 
     deserializers = {
         'application/xml': deserializer.InstanceXMLDeserializer(),
-    }
+        }
 
     response_serializer = wsgi.ResponseSerializer(body_serializers=serializers)
     request_deserializer = wsgi.RequestDeserializer(deserializers)
     return wsgi.Resource(controller, deserializer=request_deserializer,
-                         serializer=response_serializer)
+        serializer=response_serializer)
