@@ -120,6 +120,13 @@ class DirectConsumer(ConsumerBase):
 
         Other kombu options may be passed
         """
+
+        ######
+        LOG.debug("====hong===dbg===DirectConsumer exc-name %s", msg_id)
+        LOG.debug("====hong===dbg===DirectConsumer que-name %s", msg_id)
+        LOG.debug("====hong===dbg===DirectConsumer routing-key %s", msg_id)
+        ######
+
         # Default options
         options = {'durable': False,
                 'auto_delete': True,
@@ -158,6 +165,13 @@ class TopicConsumer(ConsumerBase):
                 'auto_delete': False,
                 'exclusive': False}
         options.update(kwargs)
+
+        ######
+        LOG.debug("====hong===dbg===TopicConsumer exc-name  %s", FLAGS.control_exchange)
+        LOG.debug("====hong===dbg===TopicConsumer que-name %s", topic)
+        LOG.debug("====hong===dbg===TopicConsumer routing-key %s", topic)
+        ######
+
         exchange = kombu.entity.Exchange(
                 name=FLAGS.control_exchange,
                 type='topic',
@@ -217,6 +231,13 @@ class Publisher(object):
         """Init the Publisher class with the exchange_name, routing_key,
         and other options
         """
+
+        ######
+        LOG.debug("====hong===dbg===Publisher exc-name  %s", exchange_name)
+        # LOG.debug("====hong===dbg===Publisher que-name %s", topic)
+        LOG.debug("====hong===dbg===Publisher routing-key %s", routing_key)
+        ######
+
         self.exchange_name = exchange_name
         self.routing_key = routing_key
         self.kwargs = kwargs
@@ -721,16 +742,15 @@ def multicall(context, topic, msg):
     # connection.close() will get called which will put it back into
     # the pool
     LOG.debug(_('Making asynchronous call on %s ...'), topic)
-    # LOG.debug(_('Making asynchronous call, message : %s ...'), msg)
-#    msg_id = uuid.uuid4().hex
-    msg_id = 1234
+    LOG.debug(_('Making asynchronous call, message : %s ...'), msg)
+    msg_id = uuid.uuid4().hex
     msg.update({'_msg_id': msg_id})
     LOG.debug(_('MSG_ID is %s') % (msg_id))
     _pack_context(msg, context)
 
     conn = ConnectionContext()
     wait_msg = MulticallWaiter(conn)
-    # conn.declare_direct_consumer(msg_id, wait_msg)
+    conn.declare_direct_consumer(msg_id, wait_msg)
     conn.topic_send(topic, msg)
 
     return wait_msg

@@ -19,7 +19,6 @@
 Handles all request to the Platform or Guest VM
 """
 
-
 from nova import flags
 from nova import log as logging
 from nova import rpc
@@ -109,7 +108,7 @@ class API(base.Base):
         """Make a synchronous call to check if root access is
            available for the container"""
         LOG.debug("Check root access for Instance %s", id)
-        return rpc.call(context, "topic.123",   # self._get_routing_key(context, id),
+        return rpc.call(context, self._get_routing_key(context, id),
                  {"method": "is_root_enabled"})
 
     def prepare(self, context, id, databases):
@@ -126,3 +125,8 @@ class API(base.Base):
         topic = self._get_routing_key(context, id)
         LOG.debug("Sending an upgrade call to nova-guest %s", topic)
         reddwarf_rpc.cast_with_consumer(context, topic, {"method": "upgrade"})
+
+    def trigger_smart_agent(self, context, id):
+        """Make an asynchronous call to trigger smart agent on remote instance"""
+        LOG.debug("Trigger remote smart agent for Instance %s", id)
+        rpc.cast(context, 'topic.1234', {"method": "trigger_smart_agent"})
