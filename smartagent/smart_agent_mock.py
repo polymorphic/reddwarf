@@ -73,3 +73,6 @@ def on_request(ch, method, props, body):
 
 channel.basic_qos(prefetch_count=1)
 channel.basic_consume(on_request, queue=queue_name)
+
+print "Awaiting requests from RedDwarf API server"
+channel.start_consuming()
