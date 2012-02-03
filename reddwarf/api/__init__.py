@@ -29,6 +29,7 @@ from reddwarf.api import config
 from reddwarf.api import databases
 from reddwarf.api import images
 from reddwarf.api import instances
+from reddwarf.api import instancesV2
 from reddwarf.api import guests
 from reddwarf.api import hosts
 from reddwarf.api import management
@@ -145,7 +146,7 @@ class APIRouter(wsgi.Router):
             # users can hit that api, others would just be rejected.
 
         mapper.resource("instance", "instances",
-                        controller=instances.create_resource(),
+                        controller=instancesV2.create_resource(),
                         collection={'detail': 'GET'},
                         member=instance_members)
 
