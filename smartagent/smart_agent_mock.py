@@ -90,7 +90,7 @@ def end_response(ch, props, response_id):
 
 # callback for MQ consumer
 def on_request(ch, method, props, body):
-    print " [x] Received %r" % (body,)
+    # print " [x] Received %r" % (body,)
     msg = json.loads(body)
     do_agent_work(msg)
     ch.basic_ack(delivery_tag = method.delivery_tag)
@@ -98,6 +98,7 @@ def on_request(ch, method, props, body):
     # send response back if response is requested by
     # presenting '_msg_id' key in the request json
     if '_msg_id' in msg:
+        print " [x] Got rpc.call. Sending response..."
         # set response in dictionary
         reply = 'success'
         failure = None
