@@ -126,7 +126,12 @@ class API(base.Base):
         LOG.debug("Sending an upgrade call to nova-guest %s", topic)
         reddwarf_rpc.cast_with_consumer(context, topic, {"method": "upgrade"})
 
-    def trigger_smart_agent(self, context, id):
+    def call_smart_agent(self, context, id):
         """Make an asynchronous call to trigger smart agent on remote instance"""
-        LOG.debug("Trigger remote smart agent for Instance %s", id)
+        LOG.debug("Trigger smart agent on Instance %s and wait for response.", id)
+        return rpc.call(context, id, {"method": "trigger_smart_agent"})
+
+    def cast_smart_agent(self, context, id):
+        """Make an asynchronous call to trigger smart agent on remote instance"""
+        LOG.debug("Trigger smart agent on Instance %s and expect no response.", id)
         rpc.cast(context, id, {"method": "trigger_smart_agent"})

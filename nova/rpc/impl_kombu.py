@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import ast
 import kombu
 import kombu.entity
 import kombu.messaging
@@ -586,6 +587,7 @@ class ConnectionContext(object):
     def __getattr__(self, key):
         """Proxy all other calls to the Connection instance"""
         if self.connection:
+            LOG.debug(_('ConnectionContext key: %s') % key)
             return getattr(self.connection, key)
         else:
             raise exception.InvalidRPCConnectionReuse()
@@ -700,8 +702,15 @@ class MulticallWaiter(object):
         self._iterator = None
         self._connection.close()
 
-    def __call__(self, data):
+    def __call__(self, message):
         """The consume() callback will call this.  Store the result."""
+        LOG.debug(_('rpc.call response raw data received: %r') % (message,))
+        data = message
+        try:
+            data = ast.literal_eval(message)
+        except Exception:
+            pass
+        
         if data['failure']:
             self._result = RemoteError(*data['failure'])
         else:
