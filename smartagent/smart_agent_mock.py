@@ -107,18 +107,18 @@ def on_request(ch, method, props, body):
         ch.basic_ack(delivery_tag = method.delivery_tag)
         do_agent_work(msg)
         
-    # send response back if response is requested by
-    # presenting '_msg_id' key in the request json
-    if '_msg_id' in msg:
-        print " [x] Got rpc.call. Sending response..."
-        # set response in dictionary
-        reply = 'success'
-        failure = None
-        response = {'result': reply, 'failure': failure}
-        # The '_msg_id' is used to identify the response MQ channel (exchange & routing key)
-        response_id = msg['_msg_id']
-        send_response(response, ch, props, response_id)
-        end_response(ch, props, response_id)
+        # send response back if response is requested by
+        # presenting '_msg_id' key in the request json
+        if '_msg_id' in msg:
+            print " [x] Got rpc.call. Sending response..."
+            # set response in dictionary
+            reply = 'success'
+            failure = None
+            response = {'result': reply, 'failure': failure}
+            # The '_msg_id' is used to identify the response MQ channel (exchange & routing key)
+            response_id = msg['_msg_id']
+            send_response(response, ch, props, response_id)
+            end_response(ch, props, response_id)
 
 channel.basic_qos(prefetch_count=1)
 channel.basic_consume(on_request, queue=queue_name)
