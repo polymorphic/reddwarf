@@ -27,6 +27,7 @@ import pika
 import json
 import os
 import time
+import check_mysql_status
 
 # MQ server parameters
 mq_host = '15.185.163.167'
@@ -47,15 +48,28 @@ channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=routing
 # entry point of Smart Agent work
 msg_count = 0
 def do_agent_work(msg):
+    
+    result = None
+    failure = None
+    
     try:
         global msg_count
         msg_count += 1
         print "\n>>> Method requested ", str(msg_count), ": ", msg['method']
-        print "Agent triggered to collect system info ..."
-        get_sys_info()
+        
+        if msg['method'] == 'check_mysql_status':
+            checker = check_mysql_status.MySqlChecker()
+            result = checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
+        else:
+            print "Agent triggered to collect system info ..."
+            get_sys_info()
     except KeyError:
         print "KeyError exception - received message in an unexpected format:"
         print msg
+        
+    return { 'result': result, 'failure': failure }
+    
+    
 
 # sample agent work to collect system info
 def get_sys_info():
@@ -105,16 +119,13 @@ def on_request(ch, method, props, body):
         print body
     else:
         ch.basic_ack(delivery_tag = method.delivery_tag)
-        do_agent_work(msg)
+        response = do_agent_work(msg)
         
         # send response back if response is requested by
         # presenting '_msg_id' key in the request json
         if '_msg_id' in msg:
-            print " [x] Got rpc.call. Sending response..."
-            # set response in dictionary
-            reply = 'success'
-            failure = None
-            response = {'result': reply, 'failure': failure}
+            print " [x] Got rpc.call. Sending response: ", response
+            
             # The '_msg_id' is used to identify the response MQ channel (exchange & routing key)
             response_id = msg['_msg_id']
             send_response(response, ch, props, response_id)
