@@ -31,7 +31,9 @@ import time
 # MQ server parameters
 mq_host = '15.185.163.167'
 exchange_name = 'nova'
-rout_key = ''
+
+# dynamically set routing key by instance hostname
+routing_key = os.uname()[1]
 
 # connect to RabbitMQ server and hook up on appropriate exchange,
 # queue and routingkey for receiving request message
@@ -40,18 +42,20 @@ channel = connection.channel()
 channel.exchange_declare(exchange=exchange_name, type='topic')
 result = channel.queue_declare(exclusive=True)
 queue_name = result.method.queue
-# dynamically set routing key by instance hostname
-rout_key = os.uname()[1]
-channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=rout_key)
+channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=routing_key)
 
 # entry point of Smart Agent work
 msg_count = 0
 def do_agent_work(msg):
-    global msg_count
-    msg_count += 1
-    print "\n>>> Method requested ", str(msg_count), ": ", msg['method']
-    print "Agent triggered to collect system info ..."
-    get_sys_info()
+    try:
+        global msg_count
+        msg_count += 1
+        print "\n>>> Method requested ", str(msg_count), ": ", msg['method']
+        print "Agent triggered to collect system info ..."
+        get_sys_info()
+    except KeyError:
+        print "KeyError exception - received message in an unexpected format:"
+        print msg
 
 # sample agent work to collect system info
 def get_sys_info():
@@ -88,27 +92,39 @@ def end_response(ch, props, response_id):
                      properties=pika.BasicProperties(correlation_id = props.correlation_id),
                      body=str(end_message))
 
-# callback for MQ consumer
+# Callback for MQ consumer.  Catches ValueError exceptions to avoid breaking 
+# due to malformed JSON.
 def on_request(ch, method, props, body):
     print " [x] Received %r" % (body,)
-    msg = json.loads(body)
-    do_agent_work(msg)
-    ch.basic_ack(delivery_tag = method.delivery_tag)
-
-    # send response back if response is requested by
-    # presenting '_msg_id' key in the request json
-    if '_msg_id' in msg:
-        # set response in dictionary
-        reply = 'success'
-        failure = None
-        response = {'result': reply, 'failure': failure}
-        # The '_msg_id' is used to identify the response MQ channel (exchange & routing key)
-        response_id = msg['_msg_id']
-        send_response(response, ch, props, response_id)
-        end_response(ch, props, response_id)
+    msg = None
+    try:
+        msg = json.loads(body)
+    except ValueError:
+        ch.basic_ack(delivery_tag = method.delivery_tag)
+        print "ValueError exception - received a message containing improperly formatted JSON:"
+        print body
+    else:
+        ch.basic_ack(delivery_tag = method.delivery_tag)
+        do_agent_work(msg)
+        
+        # send response back if response is requested by
+        # presenting '_msg_id' key in the request json
+        if '_msg_id' in msg:
+            print " [x] Got rpc.call. Sending response..."
+            # set response in dictionary
+            reply = 'success'
+            failure = None
+            response = {'result': reply, 'failure': failure}
+            # The '_msg_id' is used to identify the response MQ channel (exchange & routing key)
+            response_id = msg['_msg_id']
+            send_response(response, ch, props, response_id)
+            end_response(ch, props, response_id)
 
 channel.basic_qos(prefetch_count=1)
 channel.basic_consume(on_request, queue=queue_name)
 
 print "Awaiting requests from RedDwarf API server"
+
+# Consumer loop to read incoming messages.
 channel.start_consuming()
+

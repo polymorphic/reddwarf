@@ -4,6 +4,7 @@ from reddwarf import exception
 from reddwarf.guest import api as guest_api
 from nova.api.openstack import wsgi
 from reddwarf.api import common
+from webob import exc
 
 LOG = logging.getLogger('reddwarf.api.demo')
 LOG.setLevel(logging.DEBUG)
@@ -15,15 +16,23 @@ class Controller(object):
         self.guest_api = guest_api.API()
         super(Controller, self).__init__()
 
-
-    def trigger_smart_agent(self, req, instance_id):
-        """ Returns True if root is enabled for the given instance;
-            False otherwise. """
-        LOG.info("Call to demo for instance %s", instance_id)
+    def cast_smart_agent(self, req, instance_id):
+        LOG.info("Call to demo asynchronous call to smart agent on instance %s", instance_id)
         ctxt = context.get_admin_context()
         try:
-            self.guest_api.trigger_smart_agent(ctxt, instance_id)
-            return {'status': 'done'}
+            result = self.guest_api.cast_smart_agent(ctxt, instance_id)
+            return exc.HTTPAccepted()
+        except Exception as err:
+            LOG.error(err)
+            raise exception.InstanceFault("Error triggering remote smart agent")
+
+    def call_smart_agent(self, req, instance_id):
+        """  """
+        LOG.info("Call to demo synchronous call to smart agent on instance %s", instance_id)
+        ctxt = context.get_admin_context()
+        try:
+            result = self.guest_api.call_smart_agent(ctxt, instance_id)
+            return {'Response': str(result)}
         except Exception as err:
             LOG.error(err)
             raise exception.InstanceFault("Error triggering remote smart agent")
