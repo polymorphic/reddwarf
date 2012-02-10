@@ -154,7 +154,8 @@ def end_response(ch, props, response_id):
 # Callback for MQ consumer.  Catches ValueError exceptions to avoid breaking 
 # due to malformed JSON.
 def on_request(ch, method, props, body):
-    print " [x] Received %r" % (body,)
+    # TODO debug output will be redirected once logging is ready
+    # print " [x] Received %r" % (body,)
     msg = None
     try:
         msg = json.loads(body)

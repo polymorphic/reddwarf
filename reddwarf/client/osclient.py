@@ -40,12 +40,21 @@ class OSClient(object):
         
         self.client = client.Client(username,password,project_id, auth_url, region_name=region_name)
         
-    def create(self, name, image, flavor):
+    def create(self, hostname, image, flavor, key_name, security_groups):
         LOG.debug("OSClient - create()")
-        return self.client.servers.create(name, image, flavor)
+        return self.client.servers.create(hostname, image, flavor, key_name=key_name, security_groups=security_groups)
     
     def show(self, id):
         LOG.debug("OSClient - show()")
         #server = servers.Server()
         #server.id = id
         return self.client.servers.get(id)
+    
+    def assign_public_ip(self,id):
+        LOG.debug("Assigning public IP to instance %s" % id)
+        fl = self.client.floating_ips.list()
+        for ip in fl:
+            if ip.instance_id is None:
+                self.client.servers.add_floating_ip(id, ip.ip)
+                print 'assigned IP' + str(ip.ip)
+                break

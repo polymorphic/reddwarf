@@ -46,11 +46,22 @@ class Controller(object):
             raise exception.InstanceFault("Error triggering remote smart agent")
 
 
-    def call_smart_agent(self, req, instance_id):
-        LOG.info("Call to demo synchronous call to smart agent on instance %s", instance_id)
+    def check_mysql_status(self, req, instance_id):
+        LOG.info("Call to Smart Agent to check MySQL status on Instance %s", instance_id)
         ctxt = context.get_admin_context()
         try:
-            result = self.guest_api.call_smart_agent(ctxt, instance_id)
+            result = self.guest_api.check_mysql_status(ctxt, instance_id)
+            return {'Response': str(result)}
+        except Exception as err:
+            LOG.error(err)
+            raise exception.InstanceFault("Error triggering remote smart agent")
+
+
+    def reset_password(self, req, instance_id):
+        LOG.info("Call to Smart Agent to reset MySQL password on Instance %s", instance_id)
+        ctxt = context.get_admin_context()
+        try:
+            result = self.guest_api.reset_password(ctxt, instance_id)
             return {'Response': str(result)}
         except Exception as err:
             LOG.error(err)
