@@ -43,6 +43,8 @@ class MysqlCommandHandler:
 
     def reset_user_password(self, username='root', newpassword='something'):
         
+        result=None
+        
         # Prepare SQL query to UPDATE required records
         sql = "update mysql.user set Password=PASSWORD('%s') WHERE User='%s'" % (newpassword, username)
         sql_ = "FLUSH PRIVILEGES"
@@ -56,42 +58,48 @@ class MysqlCommandHandler:
             con.query(sql)
             con.query(sql_)
             # disconnect from server
+            result="success"
             con.close()
+            
         except _mysql.Error:
+            
+            result = "failed"
             print "Error: reset user password failed"
+        
+        return result
 
-    def reset_agent_password(self, username='os_admin', newpassword='hpcs'):
+#    def reset_agent_password(self, username='os_admin', newpassword='hpcs'):
         
         # generate a password
-        newpassword = random_string(16)
+#        newpassword = random_string(16)
 
         # SQL statement to change agent password 
-        sql = "set password for 'os_admin'@'localhost' = PASSWORD('%s')" % (newpassword)
+#        sql = "set password for 'os_admin'@'localhost' = PASSWORD('%s')" % (newpassword)
        
         # Open database connection
-        try: 
+#        try: 
             # Open database connection
-            con = _mysql.connect(host=self.hostname, db=self.db,
-                                 read_default_file=self.config_file)
+#            con = _mysql.connect(host=self.hostname, db=self.db,
+#                                 read_default_file=self.config_file)
             # Execute the SQL command
-            con.query(sql)
+#            con.query(sql)
             # disconnect from server
-            con.close()
+#            con.close()
             # write the .my.cnf for the agent user so the agent can connect 
-            write_temp_mycnf_with_admin_account('os_admin', newpassword)
-        except _mysql.Error:
-            print "Error: reset user password failed"
+#            write_temp_mycnf_with_admin_account('os_admin', newpassword)
+#        except _mysql.Error:
+#            print "Error: reset user password failed"
 
-    def random_string(size=6, chars=string.ascii_uppercase + string.digits):
+#    def random_string(size=6, chars=string.ascii_uppercase + string.digits):
 
         # join random chars of size N and return
-        return ''.join(random.choice(chars) for x in range(size))
+#        return ''.join(random.choice(chars) for x in range(size))
 
-    def write_temp_mycnf_with_admin_account(user='os_admin', password='hpcs'):
+#    def write_temp_mycnf_with_admin_account(user='os_admin', password='hpcs'):
 
         # open and write .my.cnf
-        mycf = open ('/root/.my.cnf', 'w')
-        mycf.write( "[client]\nuser={}\npasword={}" . format(user, password))
+#        mycf = open ('/root/.my.cnf', 'w')
+#        mycf.write( "[client]\nuser={}\npasword={}" . format(user, password))
 
 
 def main():

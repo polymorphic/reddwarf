@@ -64,14 +64,18 @@ def do_agent_work(msg):
     
     result = None
     failure = None
+    agent_username = 'root'
     
     try:
         global msg_count
         msg_count += 1
         print "     [x]  Method requested ", str(msg_count), ": ", msg['method']
         method = msg['method']
-        
-        if method == 'check_mysql_status':
+        if msg['method']=='reset_password':
+            handler = command_handler.MysqlCommandHandler()
+            result = handler.reset_user_password(agent_username, msg['args']['password'])
+            
+        elif method == 'check_mysql_status':
             checker = check_mysql_status.MySqlChecker()
             result = checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
             if result:
