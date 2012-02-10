@@ -151,7 +151,7 @@ class HPCSTest(test.TestCase):
         response = req.getresponse()
         responseContent = response.read()
         
-        print(responseContent)
+#        print(responseContent)
 
         self.assertEqual(response.status, 200)
         
@@ -164,7 +164,7 @@ class HPCSTest(test.TestCase):
         response = req.getresponse()
         responseContent = response.read()
         
-        print(responseContent)
+#        print(responseContent)
 
         self.assertEqual(response.status, 200)
 #    
