@@ -273,6 +273,7 @@ DEFINE_string('aws_secret_access_key', 'admin', 'AWS Access Key')
 DEFINE_string('novaclient_account_id', 'admin', 'Novaclient Account ID')
 DEFINE_string('novaclient_access_key', 'admin', 'Novaclient Access Key')
 DEFINE_string('novaclient_project_id', 'admin', 'Novaclient Project ID')
+DEFINE_string('novaclient_region_name', 'az-2.region-a.geo-1', 'Novaclient Region Name')
 
 # NOTE(sirp): my_ip interpolation doesn't work within nested structures
 DEFINE_list('glance_api_servers',

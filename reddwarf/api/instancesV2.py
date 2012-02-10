@@ -76,7 +76,8 @@ class ControllerV2(object):
         self.client = osclient.OSClient(FLAGS.novaclient_account_id,
             FLAGS.novaclient_access_key,
             FLAGS.novaclient_project_id,
-            'https://az-2.region-a.geo-1.compute.hpcloudsvc.com/v1.1/')
+            'https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens',
+            FLAGS.novaclient_region_name)
         super(ControllerV2, self).__init__()
 
     def index(self, req):
@@ -93,8 +94,8 @@ class ControllerV2(object):
         except:
             print "AAAAAAAA"
 
-        #servers_respose = self.server_controller.index(req)
-        #server_list = servers_response['servers']
+        servers_respose = self.server_controller.index(req)
+        server_list = servers_response['servers']
         context = req.environ['nova.context']
 
         # Instances need the status for each instance in all circumstances,
