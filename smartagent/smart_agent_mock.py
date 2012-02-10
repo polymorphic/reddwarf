@@ -29,6 +29,7 @@ import os
 import time
 import check_mysql_status
 import sys
+import command_handler
 
 # State codes for Reddwarf API
 NOSTATE = 0x00
