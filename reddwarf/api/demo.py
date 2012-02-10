@@ -19,9 +19,7 @@ from nova.api.openstack import wsgi
 from nova import compute
 from reddwarf import exception
 from reddwarf.api import common
-from reddwarf.db import api as dbapi
 from reddwarf.guest import api as guest_api
-from reddwarf.guest.db import models
 from webob import exc
 
 

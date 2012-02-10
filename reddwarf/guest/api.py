@@ -133,7 +133,8 @@ class API(base.Base):
         instance = reddwarf_dbapi.instance_from_uuid(id)
         LOG.debug("Trigger smart agent on Instance %s (%s) and wait for response.", id, instance['hostname'])
         result = rpc.call(context, instance['hostname'], {"method": "trigger_smart_agent"})
-        reddwarf_dbapi.guest_status_update(instance['internal_id'], power_state.PAUSED)
+        # update instance state in DB upon receiving success response
+        reddwarf_dbapi.guest_status_update(instance['internal_id'], power_state.RUNNING)
         return result
 
 
