@@ -174,6 +174,7 @@ class Instance(BASE, NovaBase):
             base_name += "-rescue"
         return base_name
 
+    internal_id = Column(Integer)
     user_id = Column(String(255))
     project_id = Column(String(255))
 
