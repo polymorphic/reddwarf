@@ -47,11 +47,8 @@ class Controller(object):
 
 
     def call_smart_agent(self, req, instance_id):
-        """ Make sure the requested instance is running and remotely call smart agent """
         LOG.info("Call to demo synchronous call to smart agent on instance %s", instance_id)
         ctxt = context.get_admin_context()
-        # localid = dbapi.localid_from_uuid(instance_id)
-        # common.instance_available(ctxt, instance_id, localid, self.compute_api)
         try:
             result = self.guest_api.call_smart_agent(ctxt, instance_id)
             return {'Response': str(result)}
