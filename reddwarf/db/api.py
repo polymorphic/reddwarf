@@ -361,6 +361,28 @@ def localid_from_uuid(uuid):
     return result['id']
 
 
+def instance_from_uuid(uuid):
+    """
+    Given an instance's uuid, retrieve the instance record info
+    """
+    LOG.debug("Retrieving DB record for instance %s" % uuid)
+    session = get_session()
+    try:
+        result = session.query(Instance).filter_by(uuid=uuid).one()
+    except NoResultFound:
+        LOG.debug("No such instance found.")
+        return None
+
+    # validate hostname and internal_id
+    if not result["hostname"]:
+        LOG.error("hostname not found for Instance %s" % uuid)
+        raise exception.InstanceFault("hostname not found for Instance %s" % uuid)
+    if not result["internal_id"]:
+        LOG.error("internal_id not found for Instance %s" % uuid)
+        raise exception.InstanceFault("internal_id not found for Instance %s" % uuid)
+    return result
+
+
 def rsdns_record_create(name, id):
     """
     Stores a record name / ID pair in the table rsdns_records.

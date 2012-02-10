@@ -710,7 +710,7 @@ class MulticallWaiter(object):
             data = ast.literal_eval(message)
         except Exception:
             pass
-        
+
         if data['failure']:
             self._result = RemoteError(*data['failure'])
         else:
