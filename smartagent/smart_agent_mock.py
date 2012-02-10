@@ -28,6 +28,19 @@ import json
 import os
 import time
 import check_mysql_status
+import sys
+
+# State codes for Reddwarf API
+NOSTATE = 0x00
+RUNNING = 0x01
+BLOCKED = 0x02
+PAUSED = 0x03
+SHUTDOWN = 0x04
+SHUTOFF = 0x05
+CRASHED = 0x06
+SUSPENDED = 0x07
+FAILED = 0x08
+BUILDING = 0x09
 
 # MQ server parameters
 mq_host = '15.185.163.167'
@@ -51,15 +64,46 @@ def do_agent_work(msg):
     
     result = None
     failure = None
+    agent_username = 'root'
     
     try:
         global msg_count
         msg_count += 1
-        print "\n>>> Method requested ", str(msg_count), ": ", msg['method']
-        
-        if msg['method'] == 'check_mysql_status':
+        print "     [x]  Method requested ", str(msg_count), ": ", msg['method']
+        method = msg['method']
+        if msg['method']=='reset_password':
+            handler = command_handler.MysqlCommandHandler()
+            result = handler.reset_user_password(agent_username, msg['args']['password'])
+            
+        elif method == 'check_mysql_status':
             checker = check_mysql_status.MySqlChecker()
             result = checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
+            if result:
+                result = RUNNNING
+            else:
+                result = NOSTATE
+        elif method == 'create_user':
+            pass
+        elif method == 'list_users':
+            pass
+        elif method == 'delete_user':
+            pass
+        elif method == 'create_database':
+            pass
+        elif method == 'list_databases':
+            pass
+        elif method == 'delete_database':
+            pass
+        elif method == 'enable_root':
+            pass
+        elif method == 'disable_root':
+            pass
+        elif method == 'is_root_enabled':
+            pass
+        elif method == 'prepare':
+            pass
+        elif method == 'update_status':
+            pass
         else:
             print "Agent triggered to collect system info ..."
             get_sys_info()
@@ -109,7 +153,8 @@ def end_response(ch, props, response_id):
 # Callback for MQ consumer.  Catches ValueError exceptions to avoid breaking 
 # due to malformed JSON.
 def on_request(ch, method, props, body):
-    print " [x] Received %r" % (body,)
+    # TODO debug output will be redirected once logging is ready
+    # print " [x] Received %r" % (body,)
     msg = None
     try:
         msg = json.loads(body)
@@ -124,7 +169,7 @@ def on_request(ch, method, props, body):
         # send response back if response is requested by
         # presenting '_msg_id' key in the request json
         if '_msg_id' in msg:
-            print " [x] Got rpc.call. Sending response: ", response
+            print "     [x] Got rpc.call. Sending response: ", response, "\n"
             
             # The '_msg_id' is used to identify the response MQ channel (exchange & routing key)
             response_id = msg['_msg_id']
@@ -134,7 +179,7 @@ def on_request(ch, method, props, body):
 channel.basic_qos(prefetch_count=1)
 channel.basic_consume(on_request, queue=queue_name)
 
-print "Awaiting requests from RedDwarf API server"
+print "Awaiting requests from RedDwarf API server\n"
 
 # Consumer loop to read incoming messages.
 channel.start_consuming()

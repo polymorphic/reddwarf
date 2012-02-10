@@ -128,14 +128,21 @@ class API(base.Base):
         reddwarf_rpc.cast_with_consumer(context, topic, {"method": "upgrade"})
 
 
-    def call_smart_agent(self, context, id):
-        """Make a synchronous call to trigger smart agent on remote instance"""
+    def check_mysql_status(self, context, id):
+        """Make a synchronous call to trigger smart agent for checking MySQL status"""
         instance = reddwarf_dbapi.instance_from_uuid(id)
         LOG.debug("Trigger smart agent on Instance %s (%s) and wait for response.", id, instance['hostname'])
-        result = rpc.call(context, instance['hostname'], {"method": "trigger_smart_agent"})
+        result = rpc.call(context, instance['hostname'], {"method": "check_mysql_status"})
         # update instance state in DB upon receiving success response
-        reddwarf_dbapi.guest_status_update(instance['internal_id'], power_state.RUNNING)
+        reddwarf_dbapi.guest_status_update(instance['internal_id'], int(result)) ## power_state.RUNNING)
         return result
+
+
+    def reset_password(self, context, id):
+        """Make a synchronous call to trigger smart agent for resetting MySQL password"""
+        instance = reddwarf_dbapi.instance_from_uuid(id)
+        LOG.debug("Trigger smart agent on Instance %s (%s) and wait for response.", id, instance['hostname'])
+        return rpc.call(context, instance['hostname'], {"method": "reset_password", "args": {"password": "hpcs"}})
 
 
     def cast_smart_agent(self, context, id):

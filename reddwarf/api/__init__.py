@@ -177,11 +177,11 @@ class APIRouter(wsgi.Router):
         ## demo for e2e API-MQ-Agent
         mapper.connect("/{project_id}/instances/{instance_id}/smartagent",
                        controller=demo.create_resource(),
-                       action="cast_smart_agent", conditions=dict(method=["POST"]))
+                       action="reset_password", conditions=dict(method=["POST"]))
 
         mapper.connect("/{project_id}/instances/{instance_id}/smartagent",
                        controller=demo.create_resource(),
-                       action="call_smart_agent", conditions=dict(method=["GET"]))
+                       action="check_mysql_status", conditions=dict(method=["GET"]))
 
         mapper.connect("/", controller=versions.create_resource(),
                        action="dispatch")
