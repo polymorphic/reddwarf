@@ -30,6 +30,7 @@ def setup():
     FLAGS.Reset()
     FLAGS['sql_connection'].SetDefault("sqlite:///%s" % database_file)
     FLAGS['allow_admin_api'].SetDefault("True")
+    FLAGS['state_path'].SetDefault(os.path.dirname(__file__))
     if os.path.exists(database_file):
         os.remove(database_file)
     if os.path.exists(clean_db):

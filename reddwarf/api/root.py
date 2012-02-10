@@ -85,7 +85,6 @@ def create_resource(version='1.0'):
             'user': ['name', 'password']
         },
     }
-
     xmlns = {
         '1.0': common.XML_NS_V10,
     }[version]

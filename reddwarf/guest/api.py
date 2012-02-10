@@ -22,9 +22,10 @@ Handles all request to the Platform or Guest VM
 from nova import flags
 from nova import log as logging
 from nova import rpc
-from nova.db import api as dbapi
+from nova.db import api as nova_dbapi
 from nova.db import base
-
+from nova.compute import power_state
+from reddwarf.db import api as reddwarf_dbapi
 from reddwarf import rpc as reddwarf_rpc
 
 FLAGS = flags.FLAGS
@@ -39,7 +40,7 @@ class API(base.Base):
 
     def _get_routing_key(self, context, id):
         """Create the routing key based on the container id"""
-        instance_ref = dbapi.instance_get(context, id)
+        instance_ref = nova_dbapi.instance_get(context, id)
         return "guest.%s" % instance_ref['hostname'].split(".")[0]
 
     def create_user(self, context, id, users):
@@ -126,12 +127,20 @@ class API(base.Base):
         LOG.debug("Sending an upgrade call to nova-guest %s", topic)
         reddwarf_rpc.cast_with_consumer(context, topic, {"method": "upgrade"})
 
+
     def call_smart_agent(self, context, id):
-        """Make an asynchronous call to trigger smart agent on remote instance"""
-        LOG.debug("Trigger smart agent on Instance %s and wait for response.", id)
-        return rpc.call(context, id, {"method": "trigger_smart_agent"})
+        """Make a synchronous call to trigger smart agent on remote instance"""
+        instance = reddwarf_dbapi.instance_from_uuid(id)
+        LOG.debug("Trigger smart agent on Instance %s (%s) and wait for response.", id, instance['hostname'])
+        result = rpc.call(context, instance['hostname'], {"method": "trigger_smart_agent"})
+        # update instance state in DB upon receiving success response
+        reddwarf_dbapi.guest_status_update(instance['internal_id'], power_state.RUNNING)
+        return result
+
 
     def cast_smart_agent(self, context, id):
         """Make an asynchronous call to trigger smart agent on remote instance"""
-        LOG.debug("Trigger smart agent on Instance %s and expect no response.", id)
-        rpc.cast(context, id, {"method": "trigger_smart_agent"})
+        instance = reddwarf_dbapi.instance_from_uuid(id)
+        LOG.debug("Trigger smart agent on Instance %s (%s) and expect no response.", id, instance['hostname'])
+        instance = reddwarf_dbapi.instance_from_uuid(id)
+        rpc.cast(context, instance['hostname'], {"method": "trigger_smart_agent"})

@@ -709,8 +709,9 @@ class MulticallWaiter(object):
         try:
             data = ast.literal_eval(message)
         except Exception:
+            LOG.exception('Invalid string received from message.')
             pass
-        
+
         if data['failure']:
             self._result = RemoteError(*data['failure'])
         else:

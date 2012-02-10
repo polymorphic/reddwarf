@@ -32,13 +32,13 @@ class OSClient(object):
     '''
 
 
-    def __init__(self, username, api_key, project_id, auth_url):
+    def __init__(self, username, api_key, project_id, auth_url, region_name):
         '''
         Constructor
         '''
         password = api_key
         
-        self.client = client.Client(username,password,project_id, auth_url)
+        self.client = client.Client(username,password,project_id, auth_url, region_name=region_name)
         
     def create(self, name, image, flavor):
         LOG.debug("OSClient - create()")
