@@ -11,112 +11,197 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
-Tests for Users API calls
-"""
+import json #@UnresolvedImport
+import httplib2
 
-import json
-import mox
-import stubout
-import webob
-from paste import urlmap
-from nose.tools import raises
-
-from nova import context
 from nova import test
-from nova.compute import power_state
-
-import reddwarf
-from reddwarf import exception
-from reddwarf.api import users
-from reddwarf.tests import util
-
-databases_url = "%s/1/users" % util.v1_instances_prefix
 
 
-class FakeState(object):
-    def __init__(self):
-        self.state = power_state.RUNNING
+#LOG = logging.getLogger('reddwarf.api.instances')
+#LOG.setLevel(logging.INFO)
 
-def guest_status_get(id):
-    return FakeState()
+kevin_authenticated = False
 
-def localid_from_uuid(id):
-    return id
-
-def instance_exists(ctxt, instance_id, compute_api):
-    return True
-
-def request_obj(url, method, body=None):
-    req = webob.Request.blank(url)
-    req.method = method
-    if body:
-        req.body = json.dumps(body)
-    req.headers["content-type"] = "application/json"
-    return req
 
 class HPCSTest(test.TestCase):
     """Test various Database API calls"""
+    
+    authenticated = False
+    auth_accessKey = ""
+    auth_secretKey = ""
+    auth_username = ""
+    auth_password = ""
+    auth_tenantID = ""
+    auth_token = ""
+    auth_url = "region-a.geo-1.identity.hpcloudsvc.com"
+    auth_port = 35357
+    auth_path = "/v2.0/tokens"
+    auth_headers = {"Content-type": "application/json",
+                    "Accept": "application/json"}
+    
+    object_url = ""
+    object_path = ""
+    
+    image_url = ""
+    image_path = ""
+    
+    blockstorage_url = ""
+    blockstorage_path = ""
+    
+    compute_url = "az-2.region-a.geo-1.compute.hpcloudsvc.com"
+    compute_path = "/v1.1/%s/" % auth_tenantID
+    
+    
+    def get_authtoken(self):
+        """Get authentication token"""
+        jsonRequest = """{"auth":{"passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName":"%s"}}""" % (self.auth_username, self.auth_password, self.auth_username)
+        
+        req = httplib2.HTTPSConnectionWithTimeout(self.auth_url, self.auth_port)
+        req.request("POST", self.auth_path, jsonRequest, self.auth_headers)
+        response = req.getresponse()
+        responseContent = response.read()
+        
+        if(response.status == 200) : 
+            jsonResponse = json.loads(responseContent)
+            self.auth_token = jsonResponse['access']['token']['id']
+            self.authenticated = True
+            
+        
+    def tokenHeader(self):
+        h = {"X-Auth-Token" : self.auth_token}
+        return h
 
     def setUp(self):
         super(HPCSTest, self).setUp()
-        self.context = context.get_admin_context()
-        self.controller = users.Controller()
-        self.stubs.Set(reddwarf.api.common, "instance_exists", instance_exists)
-        self.stubs.Set(reddwarf.db.api, "localid_from_uuid", localid_from_uuid)
-        self.stubs.Set(reddwarf.db.api, "guest_status_get", guest_status_get)
+        self.get_authtoken()
+    
+#    def tearDown(self):
+#        super(HPCSTest, self).tearDown()
 
-    def tearDown(self):
-        self.stubs.UnsetAll()
-        super(HPCSTest, self).tearDown()
 
-    def test_delete_user_name_begin_space(self):
-        req = request_obj(databases_url+"/%20test", 'DELETE')
-        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
-        self.assertEqual(res.status_int, 400)
-
-    def test_delete_user_name_end_space(self):
-        req = request_obj(databases_url+"/test%20", 'DELETE')
-        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
-        self.assertEqual(res.status_int, 400)
-
-    def test_create_user_name_begin_space(self):
-        body = {'users': [{'name': ' test', 'password': 'password'}]}
-        req = request_obj(databases_url, 'POST', body=body)
-        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
-        self.assertEqual(res.status_int, 400)
-
-    def test_create_user_name_end_space(self):
-        body = {'users': [{'name': 'test ', 'password': 'password'}]}
-        req = request_obj(databases_url, 'POST', body=body)
-        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
-        self.assertEqual(res.status_int, 400)
+    def test_authenticate(self):
+        """Test to authenticate a user"""
+        print("Testing authentication")
         
-#    def test_KEVIN(self):
-#        body = {'users': [{'name' : 'kevin', 'password' : 'mansel'}]}
-#        req = request_obj(databases_url, 'POST', body=body)
-#        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
-#        self.assertEqual(res.status_int, 400)
+        jsonRequest = """{"auth":{"passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName":"%s"}}""" % (self.auth_username, self.auth_password, self.auth_username)
+        
+        req = httplib2.HTTPSConnectionWithTimeout(self.auth_url, self.auth_port)
+        req.request("POST", self.auth_path, jsonRequest, self.auth_headers)
+        response = req.getresponse()
+        responseContent = response.read()
+        
+        #print(responseContent)
+        
+        self.assertEqual(response.status, 200)        
+        
+        
+    def test_instances_list(self):
+        """Test to get list of instances from nova"""
+        print("Testing instances call")
+        
+        req = httplib2.HTTPSConnectionWithTimeout(self.compute_url)
+        req.request("GET", self.compute_path + "servers", "", self.tokenHeader())
+        response = req.getresponse()
+        responseContent = response.read()
+        
+        #print(responseContent)
 
-    @raises(exception.BadRequest)
-    def test_create_user_no_password(self):
-        body = {'users': [{'name': 'test'}]}
-        self.controller._validate(body)
+        self.assertEqual(response.status, 200)
+        
+        
+    def test_instances_list_details(self):
+        """Test to get list of instances with details from nova"""
+        print("Testing instances details call")
+        
+        req = httplib2.HTTPSConnectionWithTimeout(self.compute_url)
+        req.request("GET", self.compute_path + "servers/detail", "", self.tokenHeader())
+        response = req.getresponse()
+        responseContent = response.read()
+        
+        #print(responseContent)
 
-    @raises(exception.BadRequest)
-    def test_create_user_no_name(self):
-        body = {'users': [{'password': 'password'}]}
-        self.controller._validate(body)
+        self.assertEqual(response.status, 200)
+        
+    
+#    def test_instances_create(self):
+#        """Test to create an instance on nova"""
+#        
+#    
+#    def test_instances_update(self):
+#        """Test to update information on an instance"""
+#        
+#    
+#    def test_instances_delete(self):
+#        """Test to delete an instance on nova"""
+#        
+#    
+#    def test_instances_detail(self):
+#        """Test to get specific instance details"""
+#            
+#    
+#    def test_versions_list(self):
+#        """Test to list out version information for the nova api"""
+#        
+#    
+    def test_flavors_list(self):
+        """Test to list out a list of flavors available"""
+        print("Testing flavors call")
+        req = httplib2.HTTPSConnectionWithTimeout(self.compute_url)
+        req.request("GET", self.compute_path + "flavors", "", self.tokenHeader())
+        response = req.getresponse()
+        responseContent = response.read()
+        
+#        print(responseContent)
 
-    @raises(exception.BadRequest)
-    def test_create_user_no_name_or_password(self):
-        body = {'users': [{'name1': 'test'}]}
-        self.controller._validate(body)
+        self.assertEqual(response.status, 200)
+        
+    def test_flavors_list_details(self):
+        """Test to list out a list of flavors with details"""
+        print("Testing flavor details call")
+        
+        req = httplib2.HTTPSConnectionWithTimeout(self.compute_url)
+        req.request("GET", self.compute_path + "flavors/detail", "", self.tokenHeader())
+        response = req.getresponse()
+        responseContent = response.read()
+        
+#        print(responseContent)
 
-    @raises(exception.BadRequest)
-    def test_create_user_no_name_or_password(self):
-        self.controller._validate("")
-
-    def test_create_user_no_name_or_password(self):
-        body = {'users': [{'name': 'test', 'password': 'password'}]}
-        self.controller._validate(body)
+        self.assertEqual(response.status, 200)
+#    
+#    def test_images_list(self):
+#        """Test to list out a list of images available"""
+#        
+#    
+#    def test_databases_list(self):
+#        """Test to list out database instances from nova"""
+#        
+#    
+#    def test_databases_list_detail(self): 
+#        """Test to list out database instances with details from nova"""   
+#    
+#    
+#    def test_databases_create(self):
+#        """Test to create a database instance on nova"""
+#        
+#    
+#    def test_databases_update(self):
+#        """Test to update information on a database instance"""
+#        
+#    
+#    def test_databases_delete(self):
+#        """Test to delete a database instance on nova"""
+#        
+#    def test_databases_detail(self):
+#        """Test to list out database details"""
+#        
+#    def test_databases_user_create(self):
+#        """Test to create a database user"""
+#        
+#    def test_databases_user_enableroot(self):
+#        """Test to update a database user to enable root for that user"""
+#        
+#    def test_databases_user_update(self):
+#        """Test to update a database user information"""
+#        
+#    def test_databases_user_delete(self):
+#        """Test to delete a database user"""
