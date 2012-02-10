@@ -135,6 +135,7 @@ def instance_create(server):
                      'image_ref': server.image['id'],
                      'server_name': utils.utf8(server.name),
                      'host': utils.utf8(server.hostId),
+                     'hostname': server.name,
                      'key_name': server.key_name,
                      'uuid': utils.utf8(server.uuid),
                      'access_ip_v4': utils.utf8(server.accessIPv4),
