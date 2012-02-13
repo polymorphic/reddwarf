@@ -138,6 +138,7 @@ def instance_create(server):
                      'hostname': server.name,
                      'key_name': server.key_name,
                      'uuid': utils.utf8(server.uuid),
+                     'vm_state': server.status,
                      'access_ip_v4': utils.utf8(server.accessIPv4),
                      'access_ip_v6': utils.utf8(server.accessIPv6)})
 
