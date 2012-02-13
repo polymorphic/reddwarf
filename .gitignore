@@ -38,3 +38,4 @@ integration/vagrant/report/*
 .project
 .pydevproject
 networks/
+nosetests.xml
