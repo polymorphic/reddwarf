@@ -185,8 +185,8 @@ class ViewBuilder(object):
             return 'ERROR'
         else:
             try:
-                #state = guest_states[server.id]
-                state = server.status
+                state = guest_states[server.id]
+                #state = server.status
             except (KeyError, InstanceNotFound):
                 # we set the state to shutdown if not found
                 state = power_state.SHUTDOWN
