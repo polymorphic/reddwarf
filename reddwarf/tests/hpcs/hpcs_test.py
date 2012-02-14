@@ -13,6 +13,7 @@
 #    under the License.
 import json #@UnresolvedImport
 import httplib2
+import os
 
 from nova import test
 
@@ -27,11 +28,10 @@ class HPCSTest(test.TestCase):
     """Test various Database API calls"""
     
     authenticated = False
-    auth_accessKey = ""
-    auth_secretKey = ""
-    auth_username = ""
-    auth_password = ""
-    auth_tenantID = ""
+    env = os.environ.copy()
+    auth_username = env.get("OS_USERNAME","")
+    auth_password = env.get("OS_PASSWORD","")
+    auth_tenantID = env.get("OS_TENANTID","")
     auth_token = ""
     auth_url = "region-a.geo-1.identity.hpcloudsvc.com"
     auth_port = 35357

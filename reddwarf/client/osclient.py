@@ -19,8 +19,10 @@ Created on Feb 1, 2012
 '''
 from novaclient.v1_1 import client
 from novaclient.v1_1 import servers
+from novaclient import exceptions
 from nova import flags
 from nova import log as logging
+import eventlet
 
 FLAGS = flags.FLAGS
 
@@ -52,9 +54,34 @@ class OSClient(object):
     
     def assign_public_ip(self,id):
         LOG.debug("Assigning public IP to instance %s" % id)
+        
+        ip = None
         fl = self.client.floating_ips.list()
-        for ip in fl:
-            if ip.instance_id is None:
-                self.client.servers.add_floating_ip(id, ip.ip)
-                print 'assigned IP' + str(ip.ip)
+        for flip in fl:
+            if flip.instance_id is None:
+                # Choose one of the unassigned IPs
+                ip = flip.ip
+                #self.client.servers.add_floating_ip(id, flip.ip)
                 break
+        
+        if ip is None:
+            floating_ip = self.client.floating_ips.create(None)
+            ip = floating_ip.ip
+        
+        LOG.debug("Found IP to Assign: %s" + str(ip) )
+        
+        success = False
+        while(success is False):
+            try:
+                self.client.servers.add_floating_ip(id, ip)
+                success = True
+            except Exception:
+                sucess = False
+                LOG.debug('Sleeping')
+                eventlet.sleep(1)
+                LOG.debug('Awake')
+                
+            
+        
+        
+        
