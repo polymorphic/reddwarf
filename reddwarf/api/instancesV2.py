@@ -297,7 +297,7 @@ class ControllerV2(object):
         LOG.info("Created server with uuid: " + instance_id + " and local id: " + local_id)
         
         # Need to assign public IP, but also need to wait for Networking
-        #self.client.assign_public_ip(local_id)
+        self.client.assign_public_ip(local_id)
        
         
         dbapi.instance_create(server_resp)
