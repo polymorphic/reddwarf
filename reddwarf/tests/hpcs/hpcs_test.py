@@ -27,11 +27,11 @@ class HPCSTest(test.TestCase):
     """Test various Database API calls"""
     
     authenticated = False
-    auth_accessKey = 47417970816869 #90643636312239 
-    auth_secretKey = "aMpYChyarUtwaBqbyese4bu8lDIvHTPTnhr" #"v6GzAMnrJd43gbGA1qHjXXIHLuKwjsfZxDo" 
-    auth_username = "kevin.mansel@hp.com"
-    auth_password = "!Zsport80101"
-    auth_tenantID = 19441550840127 #29478542840431
+    auth_accessKey = ""
+    auth_secretKey = ""
+    auth_username = ""
+    auth_password = ""
+    auth_tenantID = ""
     auth_token = ""
     auth_url = "region-a.geo-1.identity.hpcloudsvc.com"
     auth_port = 35357

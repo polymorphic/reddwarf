@@ -20,8 +20,12 @@ __python_version__ = '2.7.2'
 
 import sys
 import time
-import _mysql  # see http://mysql-python.sourceforge.net/MySQLdb.html
+from smartagent_persistence import DatabaseManager
+import logging
+logging.basicConfig()
 
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.DEBUG)
 
 class MySqlChecker:
     """
@@ -35,6 +39,10 @@ class MySqlChecker:
         self.database_name = database_name
         self.host_name = host_name
         self.config_file = config_file
+        # singleton
+        self.persistence_agent = DatabaseManager(host_name=host_name
+            , database_name=database_name, config_file=config_file)
+        self.persistence_agent.open_connection()
 
     def is_running(self):
         """
@@ -43,17 +51,11 @@ class MySqlChecker:
         """
         result = False
         try:
-            db = _mysql.connect(host=self.host_name, db=self.database_name,
-                                read_default_file=self.config_file)
-            result = len(db.stat()) > 0
-            db.close()
-#        except TypeError as te:
-#            print 'Wrong arguments? ', str(te)
-#        except _mysql.OperationalError as oe:
-#            print 'Operational error', str(oe)
+            result = self.persistence_agent.status()
         except:
-            # swallow exception
-            print 'Exception:', sys.exc_info()[0]
+            pass # swallow exception
+            LOG.error('Exception while trying to connect to database: %s',
+                str(sys.exc_info()[0]))
         return result
 
     def check_if_running(self, sleep_time_seconds=60, number_of_checks=10):
@@ -65,7 +67,7 @@ class MySqlChecker:
         iteration = 0
         try:
             while iteration < number_of_checks:
-#                print 'Checking iteration %d' % iteration
+                LOG.debug('Checking iteration %d' % iteration)
                 if self.is_running():
                     return True
                 else:
@@ -73,16 +75,19 @@ class MySqlChecker:
                     iteration = iteration + 1
             return False
         except:
-            print 'Error looping, aborting', sys.exc_info()[0]
+            LOG.error('Exception while iterating, aborting: %s',
+                sys.exc_info()[0])
             raise
 
 
 def main():
     checker = MySqlChecker()
-    if checker.check_if_running(5, 5):
+    if checker.check_if_running(5, 7):
+        # send phone home message
         print 'MySQL is running'
     else:
         print 'MySQL is not running'
+        # send message signaling that MySQL is not running
     sys.exit(0)
 
 if __name__ == '__main__':
