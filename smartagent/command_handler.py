@@ -21,14 +21,23 @@
 import _mysql
 from smartagent_persistence import DatabaseManager
 import logging
+import string
+import random
+
 logging.basicConfig()
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
+class StateTable:
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    NO_CONNECTION = "NO_CONNECTION"
+    
+
 class MysqlCommandHandler:
     
-    def __init__(self, host_name='15.185.173.212',
+    def __init__(self, host_name='15.185.175.59',
                  database_name='mysql', config_file='~/.my.cnf'):
         self.persistence_agent = DatabaseManager(host_name=host_name
             , database_name=database_name, config_file=config_file)
@@ -36,7 +45,7 @@ class MysqlCommandHandler:
 
     def reset_user_password(self, username='root', newpassword='something'):
         
-        result = None
+        result = StateTable.NO_CONNECTION
         
         # Prepare SQL query to UPDATE required records
         sql_update = \
@@ -50,45 +59,43 @@ class MysqlCommandHandler:
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
-            result = "success"
+            result = StateTable.SUCCESS
         except _mysql.Error:
-            result = "failed"
+            result = StateTable.FAILED
             LOG.error("Reset user password failed")
         return result
 
 #    def reset_agent_password(self, username='os_admin', newpassword='hpcs'):
-        
-        # generate a password
-#        newpassword = random_string(16)
-
-        # SQL statement to change agent password 
-#        sql = "set password for 'os_admin'@'localhost' = PASSWORD('%s')" % (newpassword)
-       
-        # Open database connection
+#        
+#        result = StateTable.NO_CONNECTION
+#        # generate a password
+#        newpassword = self.random_string(16)
+#
+#        # SQL statement to change agent password 
+#        sql = "SET PASSWORD FOR 'os_admin'@'localhost' = PASSWORD('%s')" % (newpassword)
+#       
+#        # Open database connection
 #        try: 
-            # Open database connection
-#            con = _mysql.connect(host=self.hostname, db=self.db,
-#                                 read_default_file=self.config_file)
-            # Execute the SQL command
-#            con.query(sql)
-            # disconnect from server
-#            con.close()
-            # write the .my.cnf for the agent user so the agent can connect 
-#            write_temp_mycnf_with_admin_account('os_admin', newpassword)
+#            # Execute the SQL command
+#            self.persistence_agent.execute_sql_commands(sql)
+#            result = StateTable.SUCCESS
+#            # write the .my.cnf for the agent user so the agent can connect 
+#            self.write_temp_mycnf_with_admin_account('os_admin', newpassword)
+#            
 #        except _mysql.Error:
-#            print "Error: reset user password failed"
-
-#    def random_string(size=6, chars=string.ascii_uppercase + string.digits):
-
-        # join random chars of size N and return
+#            result = StateTable.FAILED
+#            LOG.error("Reset agent password failed")
+#
+#    def random_string(self, size=6, chars=string.ascii_uppercase + string.digits):
+#
+#        # join random chars of size N and return
 #        return ''.join(random.choice(chars) for x in range(size))
-
+#
 #    def write_temp_mycnf_with_admin_account(user='os_admin', password='hpcs'):
-
-        # open and write .my.cnf
+#
+#        # open and write .my.cnf
 #        mycf = open ('/root/.my.cnf', 'w')
-#        mycf.write( "[client]\nuser={}\npasword={}" . format(user, password))
-
+#        mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
 
 def main():
     handler = MysqlCommandHandler()
