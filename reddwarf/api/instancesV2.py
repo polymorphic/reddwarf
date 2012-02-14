@@ -298,9 +298,12 @@ class ControllerV2(object):
         
         # Need to assign public IP, but also need to wait for Networking
         self.client.assign_public_ip(local_id)
-       
-        
+
         dbapi.instance_create(server_resp)
+
+        # check and update instance state
+        self.guest_api.check_mysql_status(context, instance_id)
+
         dbapi.guest_status_create(local_id)
 
         guest_state = self.get_guest_state_mapping([local_id])

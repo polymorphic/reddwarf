@@ -128,26 +128,34 @@ class API(base.Base):
         reddwarf_rpc.cast_with_consumer(context, topic, {"method": "upgrade"})
 
 
+    # smart agent operations go as follows
     def check_mysql_status(self, context, id):
         """Make a synchronous call to trigger smart agent for checking MySQL status"""
         instance = reddwarf_dbapi.instance_from_uuid(id)
-        LOG.debug("Trigger smart agent on Instance %s (%s) and wait for response.", id, instance['hostname'])
+        LOG.debug("Trigger smart agent on Instance %s (%s) to check MySQL status and wait for response.", id, instance['hostname'])
         result = rpc.call(context, instance['hostname'], {"method": "check_mysql_status"})
-        # update instance state in DB upon receiving success response
-        reddwarf_dbapi.guest_status_update(instance['internal_id'], int(result)) ## power_state.RUNNING)
-        return result
+        # update instance state in guest_status table upon receiving smart agent response
+        reddwarf_dbapi.guest_status_update(instance['internal_id'], int(result))
 
 
-    def reset_password(self, context, id):
+    def reset_password(self, context, id, password="hpcs"):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
         instance = reddwarf_dbapi.instance_from_uuid(id)
-        LOG.debug("Trigger smart agent on Instance %s (%s) and wait for response.", id, instance['hostname'])
-        return rpc.call(context, instance['hostname'], {"method": "reset_password", "args": {"password": "hpcs"}})
+        LOG.debug("Trigger smart agent to reset password on Instance %s (%s) and wait for response.", id, instance['hostname'])
+        return rpc.call(context, instance['hostname'], {"method": "reset_password", "args": {"password": password}})
 
 
-    def cast_smart_agent(self, context, id):
-        """Make an asynchronous call to trigger smart agent on remote instance"""
-        instance = reddwarf_dbapi.instance_from_uuid(id)
-        LOG.debug("Trigger smart agent on Instance %s (%s) and expect no response.", id, instance['hostname'])
-        instance = reddwarf_dbapi.instance_from_uuid(id)
-        rpc.cast(context, instance['hostname'], {"method": "trigger_smart_agent"})
+    def list_database_snapshots(self, context, instance_id):
+        return {'result': 'success'}
+
+
+    def create_database_snapshot(self, context, instance_id):
+        return {'result': 'success'}
+
+
+    def retrieve_database_snapshot(self, context, instance_id, snapshot_id):
+        return {'result': 'success'}
+
+
+    def delete_database_snapshot(self, context, instance_id, snapshot_id):
+        return {'result': 'success'}
