@@ -20,7 +20,7 @@ __python_version__ = '2.7.2'
 
 import sys
 import time
-import _mysql  # see http://mysql-python.sourceforge.net/MySQLdb.html
+from smartagent_persistence import DatabaseManager
 import logging
 logging.basicConfig()
 
@@ -39,6 +39,10 @@ class MySqlChecker:
         self.database_name = database_name
         self.host_name = host_name
         self.config_file = config_file
+        # singleton
+        self.persistence_agent = DatabaseManager(host_name=host_name
+            , database_name=database_name, config_file=config_file)
+        self.persistence_agent.open_connection()
 
     def is_running(self):
         """
@@ -47,15 +51,9 @@ class MySqlChecker:
         """
         result = False
         try:
-            LOG.debug('Checking connection to %s @ %s', self.database_name, self.host_name)
-            db = _mysql.connect(host=self.host_name, db=self.database_name,
-                                read_default_file=self.config_file)
-            status = db.ping() # stat()
-            LOG.debug('Server status: %s', status)
-            result = len(status) > 0
-            db.close()
+            result = self.persistence_agent.status()
         except:
-            # swallow exception
+            pass # swallow exception
             LOG.error('Exception while trying to connect to database: %s',
                 str(sys.exc_info()[0]))
         return result
@@ -84,7 +82,7 @@ class MySqlChecker:
 
 def main():
     checker = MySqlChecker()
-    if checker.check_if_running(5, 25):
+    if checker.check_if_running(5, 7):
         # send phone home message
         print 'MySQL is running'
     else:

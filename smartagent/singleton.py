@@ -17,7 +17,7 @@ __email__ = 'dragosm@hp.com'
 __python_version__ = '2.7.2'
 
 
-class singleton:
+class Singleton:
     """
     Singleton implementation via decorators. Not thread-safe ;)
     """
@@ -26,14 +26,17 @@ class singleton:
         self.instance = None
 
     def __call__(self, *args, **kwargs):
-        if self.instance == None:
+        if self.instance is None:
             self.instance = self.the_class(*args, **kwargs)
         return self.instance
 
 
 def main():
+    """
+    Example/test showing how to use the @Singleton decorator
+    """
 
-    @singleton
+    @Singleton
     class Test:
         def __init__(self, arg, arg1='k1'):
             self.arg = arg
