@@ -18,54 +18,42 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-
-import string
-import random
 import _mysql
+from smartagent_persistence import DatabaseManager
+import logging
+logging.basicConfig()
+
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.DEBUG)
 
 class MysqlCommandHandler:
     
-    def __init__(self, hostname='15.185.173.212',
-                 dbname='mysql', config_file='~/.my.cnf'):
-        self.hostname = hostname
-        self.db = dbname
-        self.config_file = config_file
-        # what would be better is to have a database handle class variable
-        # then each method doesn't have to reconnect, which is expensive
-        # self._dbh = connect_db()
-        # def connect_db(host=self.hostname, db=self.db)
-        #     try:
-        #         # connect
-        #         dbh = _mysql.connect(...)
-        #     ...
-        #     return dbh
-
+    def __init__(self, host_name='15.185.173.212',
+                 database_name='mysql', config_file='~/.my.cnf'):
+        self.persistence_agent = DatabaseManager(host_name=host_name
+            , database_name=database_name, config_file=config_file)
+        self.persistence_agent.open_connection()
 
     def reset_user_password(self, username='root', newpassword='something'):
         
-        result=None
+        result = None
         
         # Prepare SQL query to UPDATE required records
-        sql = "update mysql.user set Password=PASSWORD('%s') WHERE User='%s'" % (newpassword, username)
-        sql_ = "FLUSH PRIVILEGES"
+        sql_update = \
+        "update mysql.user set Password=PASSWORD('%s') WHERE User='%s'"\
+        % (newpassword, username)
+        sql_flush = "FLUSH PRIVILEGES"
+        sql_commands = []
+        sql_commands.append(sql_update)
+        sql_commands.append(sql_flush)
        
         # Open database connection
-        try: 
-            # Open database connection
-            con = _mysql.connect(host=self.hostname, db=self.db,
-                                 read_default_file=self.config_file)
-            # Execute the SQL command
-            con.query(sql)
-            con.query(sql_)
-            # disconnect from server
-            result="success"
-            con.close()
-            
+        try:
+            self.persistence_agent.execute_sql_commands(sql_commands)
+            result = "success"
         except _mysql.Error:
-            
             result = "failed"
-            print "Error: reset user password failed"
-        
+            LOG.error("Reset user password failed")
         return result
 
 #    def reset_agent_password(self, username='os_admin', newpassword='hpcs'):
