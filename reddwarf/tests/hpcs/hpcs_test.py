@@ -15,23 +15,25 @@ import json #@UnresolvedImport
 import httplib2
 import os
 
+from nova import log as logging
 from nova import test
 
 
-#LOG = logging.getLogger('reddwarf.api.instances')
-#LOG.setLevel(logging.INFO)
-
-kevin_authenticated = False
+#LOG = logging.getLogger('reddwarf.tests.hpcs.hpcs_test')
+#LOG.setLevel(logging.DEBUG)
 
 
 class HPCSTest(test.TestCase):
-    """Test various Database API calls"""
+    """Test various API calls"""
     
+    """Read environment variables for testing credentials  If you're using a mac, set these in your ~/.MacOSX/environment.plist file"""
     authenticated = False
+
     env = os.environ.copy()
-    auth_username = env.get("OS_USERNAME","")
-    auth_password = env.get("OS_PASSWORD","")
-    auth_tenantID = env.get("OS_TENANTID","")
+    auth_username = env.get("OPENSTACK_USERNAME","")
+    auth_password = env.get("OPENSTACK_PASSWORD","")
+    auth_tenantID = env.get("OPENSTACK_TENANTID","")
+
     auth_token = ""
     auth_url = "region-a.geo-1.identity.hpcloudsvc.com"
     auth_port = 35357
@@ -151,7 +153,7 @@ class HPCSTest(test.TestCase):
         response = req.getresponse()
         responseContent = response.read()
         
-#        print(responseContent)
+        #print(responseContent)
 
         self.assertEqual(response.status, 200)
         
@@ -164,7 +166,7 @@ class HPCSTest(test.TestCase):
         response = req.getresponse()
         responseContent = response.read()
         
-#        print(responseContent)
+        #print(responseContent)
 
         self.assertEqual(response.status, 200)
 #    
