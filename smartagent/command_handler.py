@@ -22,6 +22,7 @@ import _mysql
 from smartagent_persistence import DatabaseManager
 import logging
 import random
+from result_state import ResultState
 
 logging.basicConfig()
 
@@ -41,13 +42,7 @@ def write_dotmycnf(user='os_admin', password='hpcs'):
     # open and write .my.cnf
     mycf = open ('/root/.my.cnf', 'w')
     mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
-
-class StateTable:
-    """ states of failure/success """
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
-    NO_CONNECTION = "NO_CONNECTION"
-    
+  
 
 class MysqlCommandHandler:
     """ Class for passing commands to mysql """
@@ -60,7 +55,7 @@ class MysqlCommandHandler:
 
     def reset_user_password(self, username='root', newpassword='something'):
         """ reset the user's password """
-        result = StateTable.NO_CONNECTION
+        result = ResultState.NO_CONNECTION
         
         # Prepare SQL query to UPDATE required records
         sql_update = \
@@ -74,15 +69,15 @@ class MysqlCommandHandler:
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
-            result = StateTable.SUCCESS
+            result = ResultState.SUCCESS
         except _mysql.Error:
-            result = StateTable.FAILED
+            result = ResultState.FAILED
             LOG.error("Reset user password failed")
         return result
 
     def reset_agent_password(self, username='os_admin', newpassword='hpcs'):
         """ Reset the MySQL account password for the agent's account """ 
-        result = StateTable.NO_CONNECTION
+        result = ResultState.NO_CONNECTION
         # generate a password
         newpassword = random_string(16)
 
@@ -94,12 +89,12 @@ class MysqlCommandHandler:
         try: 
             # Execute the SQL command
             self.persistence_agent.execute_sql_commands(sql)
-            result = StateTable.SUCCESS
+            result = ResultState.SUCCESS
             # write the .my.cnf for the agent user so the agent can connect 
             write_dotmycnf('os_admin', newpassword)
             
         except _mysql.Error:
-            result = StateTable.FAILED
+            result = ResultState.FAILED
             LOG.error("Reset agent password failed")
 
         return result
