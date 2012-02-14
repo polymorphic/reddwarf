@@ -15,65 +15,73 @@ import json #@UnresolvedImport
 import httplib2
 import os
 
+from nova import log as logging
 from nova import test
 
 
-#LOG = logging.getLogger('reddwarf.api.instances')
-#LOG.setLevel(logging.INFO)
+#LOG = logging.getLogger('reddwarf.tests.hpcs.hpcs_test')
+#LOG.setLevel(logging.DEBUG)
 
-kevin_authenticated = False
+"""Read environment variables for testing credentials  If you're using a mac, set these in your ~/.MacOSX/environment.plist file"""
+authenticated = False
 
+env = os.environ.copy()
+auth_username = env.get("OPENSTACK_USERNAME","")
+auth_password = env.get("OPENSTACK_PASSWORD","")
+auth_tenantID = env.get("OPENSTACK_TENANTID","")
+
+auth_token = ""
+auth_url = "region-a.geo-1.identity.hpcloudsvc.com"
+auth_port = 35357
+auth_path = "/v2.0/tokens"
+auth_headers = {"Content-type": "application/json",
+                "Accept": "application/json"}
+
+object_url = ""
+object_path = ""
+
+image_url = ""
+image_path = ""
+
+blockstorage_url = ""
+blockstorage_path = ""
+
+compute_url = "az-2.region-a.geo-1.compute.hpcloudsvc.com"
+compute_path = "/v1.1/%s/" % auth_tenantID
+    
 
 class HPCSTest(test.TestCase):
-    """Test various Database API calls"""
-    
-    authenticated = False
-    env = os.environ.copy()
-    auth_username = env.get("OS_USERNAME","")
-    auth_password = env.get("OS_PASSWORD","")
-    auth_tenantID = env.get("OS_TENANTID","")
-    auth_token = ""
-    auth_url = "region-a.geo-1.identity.hpcloudsvc.com"
-    auth_port = 35357
-    auth_path = "/v2.0/tokens"
-    auth_headers = {"Content-type": "application/json",
-                    "Accept": "application/json"}
-    
-    object_url = ""
-    object_path = ""
-    
-    image_url = ""
-    image_path = ""
-    
-    blockstorage_url = ""
-    blockstorage_path = ""
-    
-    compute_url = "az-2.region-a.geo-1.compute.hpcloudsvc.com"
-    compute_path = "/v1.1/%s/" % auth_tenantID
-    
+    """Test various API calls"""    
     
     def get_authtoken(self):
         """Get authentication token"""
-        jsonRequest = """{"auth":{"passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName":"%s"}}""" % (self.auth_username, self.auth_password, self.auth_username)
+        jsonRequest = """{"auth":{"passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName":"%s"}}""" % (auth_username, auth_password, auth_username)
         
-        req = httplib2.HTTPSConnectionWithTimeout(self.auth_url, self.auth_port)
-        req.request("POST", self.auth_path, jsonRequest, self.auth_headers)
+        req = httplib2.HTTPSConnectionWithTimeout(auth_url, auth_port)
+        req.request("POST", auth_path, jsonRequest, auth_headers)
         response = req.getresponse()
         responseContent = response.read()
         
         if(response.status == 200) : 
             jsonResponse = json.loads(responseContent)
-            self.auth_token = jsonResponse['access']['token']['id']
-            self.authenticated = True
+            global auth_token, authenticated
+            auth_token = jsonResponse['access']['token']['id']
+            authenticated = True
             
         
     def tokenHeader(self):
-        h = {"X-Auth-Token" : self.auth_token}
+        h = {"X-Auth-Token" : auth_token}
         return h
 
     def setUp(self):
         super(HPCSTest, self).setUp()
-        self.get_authtoken()
+        
+        global authenticated
+        
+        if(authenticated != True) :
+            self.get_authtoken()
+        else : 
+            print "Authentication Token : " + auth_token
     
 #    def tearDown(self):
 #        super(HPCSTest, self).tearDown()
@@ -83,10 +91,10 @@ class HPCSTest(test.TestCase):
         """Test to authenticate a user"""
         print("Testing authentication")
         
-        jsonRequest = """{"auth":{"passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName":"%s"}}""" % (self.auth_username, self.auth_password, self.auth_username)
+        jsonRequest = """{"auth":{"passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName":"%s"}}""" % (auth_username, auth_password, auth_username)
         
-        req = httplib2.HTTPSConnectionWithTimeout(self.auth_url, self.auth_port)
-        req.request("POST", self.auth_path, jsonRequest, self.auth_headers)
+        req = httplib2.HTTPSConnectionWithTimeout(auth_url, auth_port)
+        req.request("POST", auth_path, jsonRequest, auth_headers)
         response = req.getresponse()
         responseContent = response.read()
         
@@ -99,8 +107,8 @@ class HPCSTest(test.TestCase):
         """Test to get list of instances from nova"""
         print("Testing instances call")
         
-        req = httplib2.HTTPSConnectionWithTimeout(self.compute_url)
-        req.request("GET", self.compute_path + "servers", "", self.tokenHeader())
+        req = httplib2.HTTPSConnectionWithTimeout(compute_url)
+        req.request("GET", compute_path + "servers", "", self.tokenHeader())
         response = req.getresponse()
         responseContent = response.read()
         
@@ -113,8 +121,8 @@ class HPCSTest(test.TestCase):
         """Test to get list of instances with details from nova"""
         print("Testing instances details call")
         
-        req = httplib2.HTTPSConnectionWithTimeout(self.compute_url)
-        req.request("GET", self.compute_path + "servers/detail", "", self.tokenHeader())
+        req = httplib2.HTTPSConnectionWithTimeout(compute_url)
+        req.request("GET", compute_path + "servers/detail", "", self.tokenHeader())
         response = req.getresponse()
         responseContent = response.read()
         
@@ -146,12 +154,12 @@ class HPCSTest(test.TestCase):
     def test_flavors_list(self):
         """Test to list out a list of flavors available"""
         print("Testing flavors call")
-        req = httplib2.HTTPSConnectionWithTimeout(self.compute_url)
-        req.request("GET", self.compute_path + "flavors", "", self.tokenHeader())
+        req = httplib2.HTTPSConnectionWithTimeout(compute_url)
+        req.request("GET", compute_path + "flavors", "", self.tokenHeader())
         response = req.getresponse()
         responseContent = response.read()
         
-#        print(responseContent)
+        #print(responseContent)
 
         self.assertEqual(response.status, 200)
         
@@ -159,12 +167,12 @@ class HPCSTest(test.TestCase):
         """Test to list out a list of flavors with details"""
         print("Testing flavor details call")
         
-        req = httplib2.HTTPSConnectionWithTimeout(self.compute_url)
-        req.request("GET", self.compute_path + "flavors/detail", "", self.tokenHeader())
+        req = httplib2.HTTPSConnectionWithTimeout(compute_url)
+        req.request("GET", compute_path + "flavors/detail", "", self.tokenHeader())
         response = req.getresponse()
         responseContent = response.read()
         
-#        print(responseContent)
+        #print(responseContent)
 
         self.assertEqual(response.status, 200)
 #    
@@ -193,7 +201,7 @@ class HPCSTest(test.TestCase):
 #        
 #    def test_databases_detail(self):
 #        """Test to list out database details"""
-#        
+#        x
 #    def test_databases_user_create(self):
 #        """Test to create a database user"""
 #        

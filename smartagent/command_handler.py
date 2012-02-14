@@ -21,22 +21,41 @@
 import _mysql
 from smartagent_persistence import DatabaseManager
 import logging
+import random
+from result_state import ResultState
+
 logging.basicConfig()
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
+def random_string(size=6):
+    """ Generate a random string to be used for password """
+    # string to use
+    chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    # join random chars of size N and return
+    return ''.join(random.choice(chars) for x in range(size))
+
+def write_dotmycnf(user='os_admin', password='hpcs'):
+    """ Write the .my.cnf file so as the user does not require credentials 
+    for the DB """
+    # open and write .my.cnf
+    mycf = open ('/root/.my.cnf', 'w')
+    mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
+  
+
 class MysqlCommandHandler:
+    """ Class for passing commands to mysql """
     
-    def __init__(self, host_name='15.185.173.212',
+    def __init__(self, host_name='15.185.175.59',
                  database_name='mysql', config_file='~/.my.cnf'):
         self.persistence_agent = DatabaseManager(host_name=host_name
             , database_name=database_name, config_file=config_file)
         self.persistence_agent.open_connection()
 
     def reset_user_password(self, username='root', newpassword='something'):
-        
-        result = None
+        """ reset the user's password """
+        result = ResultState.NO_CONNECTION
         
         # Prepare SQL query to UPDATE required records
         sql_update = \
@@ -50,47 +69,39 @@ class MysqlCommandHandler:
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
-            result = "success"
+            result = ResultState.SUCCESS
         except _mysql.Error:
-            result = "failed"
+            result = ResultState.FAILED
             LOG.error("Reset user password failed")
         return result
 
-#    def reset_agent_password(self, username='os_admin', newpassword='hpcs'):
-        
+    def reset_agent_password(self, username='os_admin', newpassword='hpcs'):
+        """ Reset the MySQL account password for the agent's account """ 
+        result = ResultState.NO_CONNECTION
         # generate a password
-#        newpassword = random_string(16)
+        newpassword = random_string(16)
 
         # SQL statement to change agent password 
-#        sql = "set password for 'os_admin'@'localhost' = PASSWORD('%s')" % (newpassword)
+        sql = "SET PASSWORD FOR '%s'@'localhost'"\
+        " PASSWORD('%s')" % (username, newpassword)
        
         # Open database connection
-#        try: 
-            # Open database connection
-#            con = _mysql.connect(host=self.hostname, db=self.db,
-#                                 read_default_file=self.config_file)
+        try: 
             # Execute the SQL command
-#            con.query(sql)
-            # disconnect from server
-#            con.close()
+            self.persistence_agent.execute_sql_commands(sql)
+            result = ResultState.SUCCESS
             # write the .my.cnf for the agent user so the agent can connect 
-#            write_temp_mycnf_with_admin_account('os_admin', newpassword)
-#        except _mysql.Error:
-#            print "Error: reset user password failed"
+            write_dotmycnf('os_admin', newpassword)
+            
+        except _mysql.Error:
+            result = ResultState.FAILED
+            LOG.error("Reset agent password failed")
 
-#    def random_string(size=6, chars=string.ascii_uppercase + string.digits):
-
-        # join random chars of size N and return
-#        return ''.join(random.choice(chars) for x in range(size))
-
-#    def write_temp_mycnf_with_admin_account(user='os_admin', password='hpcs'):
-
-        # open and write .my.cnf
-#        mycf = open ('/root/.my.cnf', 'w')
-#        mycf.write( "[client]\nuser={}\npasword={}" . format(user, password))
+        return result
 
 
 def main():
+    """ main program """
     handler = MysqlCommandHandler()
     handler.reset_user_password('root', 'hpcs')
 

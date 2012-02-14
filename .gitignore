@@ -39,3 +39,4 @@ integration/vagrant/report/*
 .pydevproject
 networks/
 nosetests.xml
+.settings
