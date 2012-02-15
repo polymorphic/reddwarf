@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 ### BEGIN INIT INFO
 # Provides:          disk_prep 
@@ -22,9 +22,9 @@ SELF=$(cd $(dirname $0); pwd -P)/$(basename $0)
 case "$1" in
   start)
     /etc/init.d/mysql stop
-    lv_exists=`lvs |grep mysql-data`
+    lv_exists=`lvs 2>/dev/null|grep mysql-data`
 
-    if [ -z $lv_exists  ]; then
+    if [ -z "${lv_exists}"  ]; then
 
         # /dev/vdb is mounted ext3, we don't want this
         umount /mnt
