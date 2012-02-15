@@ -25,11 +25,13 @@ on any RedDwarf code.
 #!/usr/bin/env python
 
 import os
+import logging
 import time
+
 from smartagent_messaging import MessagingService
 from check_mysql_status import MySqlChecker
 import command_handler
-import logging
+
 logging.basicConfig()
 
 LOG = logging.getLogger(__name__)
@@ -50,8 +52,8 @@ BUILDING = 0x09
 
 class SmartAgent:
     """This class provides an agent able to communicate with a RedDwarf API
-server and take action on a particular RedDwarf instance based on the
-contents of the messages received."""
+    server and take action on a particular RedDwarf instance based on the
+    contents of the messages received."""
 
     def __init__(self):
         self.msg_count = 0
@@ -150,7 +152,7 @@ contents of the messages received."""
         except KeyError:
             LOG.error('Message missing "method" element: %s', msg)
             return {'result': result, 'failure': failure}
-        LOG.debug ('Dispatching %s (%d)', method, str(self.msg_count))
+        LOG.debug ('Dispatching %s (%d)', method, self.msg_count)
         #  internal API
         if method == 'create_instance':
             result = self.create_database_instance(msg)
@@ -171,6 +173,7 @@ contents of the messages received."""
         else:
             result = self.get_system_info()
         return {'result': result, 'failure': failure}
+
 
 def main():
     """Activates the smart agent by instantiating an instance of SmartAgent
