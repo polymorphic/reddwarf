@@ -2,10 +2,10 @@
 #
 ### BEGIN INIT INFO
 # Provides:          disk_prep 
-# Required-Start:    $remote_fs $syslog $mysqld
-# Required-Stop:     $remote_fs $syslog $mysqld
-# Should-Start:      $network $named $time $mysqld
-# Should-Stop:       $network $named $time $mysqld
+# Required-Start:    $remote_fs $syslog $mysql
+# Required-Stop:     $remote_fs $syslog $mysql
+# Should-Start:      $network $named $time $mysql
+# Should-Stop:       $network $named $time $mysql
 # Default-Start:     3
 # Default-Stop:      
 # Short-Description: Prepare the disk - lvm, xfs, and copy mysql datadir 

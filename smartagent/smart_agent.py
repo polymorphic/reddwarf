@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 # Copyright 2012 OpenStack LLC.
@@ -22,7 +23,6 @@ It mocks SmartAgent and depends on pika AMQP library but has no dependency
 on any RedDwarf code.
 """
 
-#!/usr/bin/env python
 import json
 import os
 import time
