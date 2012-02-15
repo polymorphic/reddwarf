@@ -28,14 +28,13 @@ LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
 
-remote_host = '15.185.175.59'
 @Singleton
 class DatabaseManager:
     """
     This class encapsulates a (singleton) connection to a database.
     """
     def __init__(self,
-                 host_name=remote_host,
+                 host_name='localhost',
                  database_name='mysql',
                  config_file='~/.my.cnf'):
         self.host_name = host_name

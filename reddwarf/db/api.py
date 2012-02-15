@@ -120,7 +120,7 @@ def guest_status_delete(instance_id):
                         'state': state,
                         'state_description': power_state.name(state)})
                 
-def instance_create(server):
+def instance_create(instance_name, server):
     """Creates an instance record """
     LOG.debug("instance_create id = %s" % str(server.id))
     
@@ -133,7 +133,7 @@ def instance_create(server):
                      'user_id': utils.utf8(server.user_id),
                      'project_id': utils.utf8(server.tenant_id),
                      'image_ref': server.image['id'],
-                     'server_name': utils.utf8(server.name),
+                     'server_name': instance_name,
                      'host': utils.utf8(server.hostId),
                      'hostname': server.name,
                      'key_name': server.key_name,
