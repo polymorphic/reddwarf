@@ -1,0 +1,59 @@
+#!/bin/bash
+#
+### BEGIN INIT INFO
+# Provides:          smart_agent 
+# Required-Start:    $remote_fs $syslog $mysqld 
+# Required-Stop:     $remote_fs $syslog $mysqld
+# Should-Start:      $network $named $time $mysqld
+# Should-Stop:       $network $named $time $mysqld
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start and stop the Smart agent 
+# Description: 	     Start and stop the Smart agent 
+#
+### END INIT INFO
+#
+
+SMART_AGENT=/root/reddwarf/smartagent/smart_agent_mock.py
+
+test -x $SMART_AGENT || exit 0
+
+. /lib/lsb/init-functions
+
+SELF=$(cd $(dirname $0); pwd -P)/$(basename $0)
+
+#
+# main()
+#
+
+case "$1" in
+  start)
+	# Start daemon
+	log_daemon_msg "Starting smart agent"
+	$SMART_AGENT > /dev/null 2>&1 &
+	;;
+  stop)
+	smart_agent_pid=`pidof python`
+	log_daemon_msg "Stopping smart agent PID ${smart_agent_pid}"
+	kill $smart_agent_pid
+	;;
+  restart)
+	smart_agent_pid=`pidof python`
+	log_daemon_msg "Stopping smart agent PID ${smart_agent_pid}"
+	kill $smart_agent_pid
+	log_daemon_msg "Starting smart agent"
+	$SMART_AGENT > /dev/null 2>&1 &
+	;;
+  status)
+	smart_agent_pid=`pidof python`
+	if [ -z $smart_agent_pid ]; then 
+           log_failure_msg "The smart agent is not running"
+        else 
+	   log_daemon_msg "The smart agent is running with the PID ${smart_agent_pid}"
+        fi
+	;;
+  *)
+	echo "Usage: $SELF start|stop|restart|status"
+	exit 1
+	;;
+esac

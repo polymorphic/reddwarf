@@ -1,0 +1,4 @@
+cp smart_agent disk_prep /etc/init.d
+update-rc.d disk_prep defaults 85
+update-rc.d smart_agent defaults 90
+
