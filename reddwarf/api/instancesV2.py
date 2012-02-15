@@ -25,6 +25,7 @@ from nova import exception as nova_exception
 from nova import flags
 from nova import log as logging
 from nova import volume
+from nova import utils
 from nova.api.openstack import common as nova_common
 from nova.api.openstack import faults
 from nova.api.openstack import servers
@@ -284,7 +285,12 @@ class ControllerV2(object):
 
         # Add any extra data that's required by the servers api
         #server_req_body = {'server':server}
-        server_resp = self._try_create_server(req, instance_name, image_id)
+        
+        # Generate a UUID and set as the hostname, to guarantee unique
+        # routing key for Agent
+        host_name = str(utils.gen_uuid());
+        
+        server_resp = self._try_create_server(req, host_name, image_id)
         
         #LOG.debug("Server_Response type: " + server_resp.getid(server_resp))
         from inspect import getmembers
@@ -299,10 +305,10 @@ class ControllerV2(object):
         # Need to assign public IP, but also need to wait for Networking
         self.client.assign_public_ip(local_id)
 
-        dbapi.instance_create(server_resp)
+        dbapi.instance_create(instance_name, server_resp)
 
         # check and update instance state
-        self.guest_api.check_mysql_status(context, instance_id)
+        #self.guest_api.check_mysql_status(context, instance_id)
 
         dbapi.guest_status_create(local_id)
 
