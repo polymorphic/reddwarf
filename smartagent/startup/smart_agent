@@ -14,7 +14,7 @@
 ### END INIT INFO
 #
 
-SMART_AGENT=/root/reddwarf/smartagent/smart_agent.py
+SMART_AGENT=/home/nova/reddwarf/smartagent/smart_agent.py
 
 test -x $SMART_AGENT || exit 0
 
@@ -24,7 +24,7 @@ SELF=$(cd $(dirname $0); pwd -P)/$(basename $0)
 
 do_start () {
     log_daemon_msg "Starting smart agent"
-	$SMART_AGENT > /dev/null 2>&1 &
+	sudo -u nova $SMART_AGENT > /dev/null 2>&1 &
 }
 
 do_stop () {
