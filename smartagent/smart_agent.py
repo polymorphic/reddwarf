@@ -30,7 +30,7 @@ import time
 
 from smartagent_messaging import MessagingService
 from check_mysql_status import MySqlChecker
-import command_handler
+from command_handler import MysqlCommandHandler
 
 logging.basicConfig()
 
@@ -55,9 +55,9 @@ class SmartAgent:
     server and take action on a particular RedDwarf instance based on the
     contents of the messages received."""
 
-    def __init__(self):
+    def __init__(self, msg_service):
         self.msg_count = 0
-        self.messaging = MessagingService()
+        self.messaging = msg_service
         self.messaging.callback = self.process_message
         self.agent_username = 'root'
 
@@ -80,7 +80,7 @@ class SmartAgent:
         return result
 
     def reset_password(self, msg):
-        handler = command_handler.MysqlCommandHandler() # TODO extract into instance variable
+        handler = MysqlCommandHandler() # TODO extract into instance variable
         result = handler.reset_user_password(
             self.agent_username, msg['args']['password'])
         return result
@@ -126,8 +126,8 @@ class SmartAgent:
         LOG.debug("Current Directory: %s", where)
         LOG.debug("System information: %s", what)
         LOG.debug("Time is now: %s", means)
-        response = {'result' : None, 'failure' : None}
-        return response
+        result = None
+        return result
 
     def process_message(self, msg):
         """Performs actual agent work.  Called by on_request() whenever
@@ -179,7 +179,10 @@ def main():
     """Activates the smart agent by instantiating an instance of SmartAgent
        and then calling its start_consuming() method."""
 
-    agent = SmartAgent()
+    # Start a RabbitMQ MessagingService instance
+    msg_service = MessagingService()
+    
+    agent = SmartAgent(msg_service)
     agent.start()
 
 if __name__ == '__main__':
