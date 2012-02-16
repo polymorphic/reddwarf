@@ -23,6 +23,7 @@ It mocks SmartAgent and depends on pika AMQP library but has no dependency
 on any RedDwarf code.
 """
 
+from subprocess import call
 import json
 import os
 import time
@@ -101,7 +102,9 @@ class SmartAgent:
         self.msg_count += 1
         result = None
         failure = None
-        agent_username = 'root'
+
+        # will use this for reset agent password
+        # agent_username = 'os_admin'
         
         # Make sure the method key is part of the JSON - if not, it's
         # invalid.
@@ -121,7 +124,7 @@ class SmartAgent:
         if method == 'reset_password':
             handler = command_handler.MysqlCommandHandler()
             result = handler.reset_user_password(
-                agent_username, msg['args']['password'])
+                msg['args']['username'], msg['args']['password'])
         elif method == 'check_mysql_status':
             checker = MySqlChecker()
             result = checker.check_if_running(sleep_time_seconds=3, 
@@ -130,18 +133,31 @@ class SmartAgent:
                 result = RUNNING
             else:
                 result = NOSTATE
+        elif method == 'start':
+            result = call("sudo service mysql start", shell=True)
+        elif method == 'stop':
+            result = call("sudo service mysql stop", shell=True)
+        elif method == 'restart':
+            result = call("sudo service mysql restart", shell=True)
         elif method == 'create_user':
-            pass
+            handler = command_handler.MysqlCommandHandler()
+            result = handler.create_user(
+                msg['args']['username'], 
+                msg['args']['hostname'],
+                msg['args']['password'])
         elif method == 'list_users':
             pass
         elif method == 'delete_user':
-            pass
+            handler = command_handler.MysqlCommandHandler()
+            result = handler.delete_user(msg['args']['username'])
         elif method == 'create_database':
-            pass
+            handler = command_handler.MysqlCommandHandler()
+            result = handler.create_database(msg['args']['database'])
         elif method == 'list_databases':
             pass
-        elif method == 'delete_database':
-            pass
+        elif method == 'drop_database':
+            handler = command_handler.MysqlCommandHandler()
+            result = handler.drop_database(msg['args']['database'])
         elif method == 'enable_root':
             pass
         elif method == 'disable_root':

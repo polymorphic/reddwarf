@@ -21,7 +21,7 @@ SELF=$(cd $(dirname $0); pwd -P)/$(basename $0)
 
 case "$1" in
   start)
-    /etc/init.d/mysql stop
+    service mysql stop
     lv_exists=`lvs 2>/dev/null|grep mysql-data`
 
     if [ -z "${lv_exists}"  ]; then
@@ -75,7 +75,7 @@ EOF
         chown -R mysql:mysql /var/lib/mysql
 
         # start
-        /etc/init.d/mysql start
+        service mysql start
 
         echo "#!/bin/bash" > /etc/init.d/disk_prep
         echo "exit 0" >> /etc/init.d/disk_prep

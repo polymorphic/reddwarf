@@ -22,6 +22,30 @@ test -x $SMART_AGENT || exit 0
 
 SELF=$(cd $(dirname $0); pwd -P)/$(basename $0)
 
+do_start () {
+    log_daemon_msg "Starting smart agent"
+	$SMART_AGENT > /dev/null 2>&1 &
+}
+
+do_stop () {
+	smart_agent_pid=`pidof python`
+	if [ -z $smart_agent_pid ]; then 
+        log_failure_msg "The smart agent is not running"
+    else 
+        log_daemon_msg "Stopping smart agent PID ${smart_agent_pid}"
+            kill $smart_agent_pid
+    fi
+}
+
+do_status () {
+	smart_agent_pid=`pidof python`
+	if [ -z $smart_agent_pid ]; then 
+        log_failure_msg "The smart agent is not running"
+    else 
+        log_daemon_msg "The smart agent is running with the PID ${smart_agent_pid}"
+    fi
+}
+
 #
 # main()
 #
@@ -29,28 +53,17 @@ SELF=$(cd $(dirname $0); pwd -P)/$(basename $0)
 case "$1" in
   start)
 	# Start daemon
-	log_daemon_msg "Starting smart agent"
-	$SMART_AGENT > /dev/null 2>&1 &
+    do_start
 	;;
   stop)
-	smart_agent_pid=`pidof python`
-	log_daemon_msg "Stopping smart agent PID ${smart_agent_pid}"
-	kill $smart_agent_pid
+    do_stop
 	;;
   restart)
-	smart_agent_pid=`pidof python`
-	log_daemon_msg "Stopping smart agent PID ${smart_agent_pid}"
-	kill $smart_agent_pid
-	log_daemon_msg "Starting smart agent"
-	$SMART_AGENT > /dev/null 2>&1 &
+    do_stop
+    do_start
 	;;
   status)
-	smart_agent_pid=`pidof python`
-	if [ -z $smart_agent_pid ]; then 
-           log_failure_msg "The smart agent is not running"
-        else 
-	   log_daemon_msg "The smart agent is running with the PID ${smart_agent_pid}"
-        fi
+    do_status
 	;;
   *)
 	echo "Usage: $SELF start|stop|restart|status"
