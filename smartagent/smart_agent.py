@@ -192,7 +192,7 @@ class SmartAgent:
         elif method == 'delete_user':
             result = self.delete_user(msg)
         elif method == 'create_database':
-            reseult = self.create_database(msg)
+            result = self.create_database(msg)
         elif method == 'list_databases':
             pass
         elif method == 'drop_database':
