@@ -23,6 +23,9 @@ from smartagent_persistence import DatabaseManager
 import logging
 import random
 from result_state import ResultState
+import os
+from multiprocessing import Process
+import time
 
 logging.basicConfig()
 
@@ -43,7 +46,6 @@ def write_dotmycnf(user='os_admin', password='hpcs'):
     mycf = open ('/root/.my.cnf', 'w')
     mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
   
-
 class MysqlCommandHandler:
     """ Class for passing commands to mysql """
     
@@ -214,11 +216,50 @@ class MysqlCommandHandler:
             LOG.error("Drop database failed")
         return result
 
-
+    def backup_process_checker(self, process_id):
+        """ background process checking if innobackupex is still running and 
+            if the backup snapshot has been created successfully at the end """
+            
+        fname = '/root/innobackupex.log'
+        target_str = "innobackupex: completed OK!"
+        
+        while os.path.exists("/proc/%s" % process_id):
+            LOG.debug('innobackupex is still running')
+            time.sleep(5)
+        
+        """ check the last line of innobackupex log to see its status """
+        file = open(fname, "r")
+        last_lines = file.readlines()[-1:]
+        
+        for line in last_lines:
+            print line
+            if target_str in line:
+                LOG.debug("innobackupex runs successfully")
+                return ResultState.SUCCESS
+            else:
+                return ResultState.FAILED
+                LOG.error("backup process failed")
+    
+           
+    def create_db_snapshot(self, path='/var/lib/mysql-backup/', path_specifier='uuid'):
+        
+        path += path_specifier
+        innobackup_cmd= "innobackupex --no-timestamp %s > /root/innobackupex.log 2>&1" % path
+        
+        inno_process = Process(target=os.system, args=(innobackup_cmd,))
+        inno_process.start()
+        LOG.debug('innobackupex process started')
+        
+        """ start background process for checker """
+        checker_process = Process(target=self.backup_process_checker, args=(inno_process.pid,))
+        checker_process.start()
+        LOG.debug('checker process started')  
+        
 def main():
     """ main program """
     handler = MysqlCommandHandler()
     handler.reset_user_password('root', 'hpcs')
+    handler.create_db_snapshot(path='/var/lib/mysql-backup/', path_specifier='uuid')
 
 if __name__ == '__main__':
     main()
