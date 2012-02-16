@@ -60,14 +60,88 @@ class SmartAgent:
     server and take action on a particular RedDwarf instance based on the
     contents of the messages received."""
 
-    def __init__(self, msg_service):
+    def __init__(self, msg_service, 
+                pidfile='/home/nova/lock/smart_agent.pid',
+                stdin='/dev/null', 
+                stdout='/dev/null',
+                stderr='/dev/null'):
+        """ Constructor method """
+        self.stdin = stdin
+        self.stdout = stdout
+        self.stderr = stderr
+        self.pidfile = pidfile
         self.msg_count = 0
         self.messaging = msg_service
         self.messaging.callback = self.process_message
         self.agent_username = 'root'
         self.checker = MySqlChecker()  # TODO extract into instance variable
 
+    def daemonize(self):
+        """ fork the daemon """
+        try:
+            pid = os.fork()
+            if pid > 0:
+                # exit first parent
+                sys.exit(0)
+            except OSError, e:
+                sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+                sys.exit(1)
+       
+            # decouple from parent environment
+            os.chdir("/home/nova")
+            os.setsid()
+            os.umask(0)
+       
+        # do second fork
+        try:
+            pid = os.fork()
+            if pid > 0:
+                # exit from second parent
+                sys.exit(0)
+         except OSError, e:
+            sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
+            sys.exit(1)
+       
+        # redirect standard file descriptors
+        sys.stdout.flush()
+        sys.stderr.flush()
+        si = file(self.stdin, 'r')
+        so = file(self.stdout, 'a+')
+        se = file(self.stderr, 'a+', 0)
+        os.dup2(si.fileno(), sys.stdin.fileno())
+        os.dup2(so.fileno(), sys.stdout.fileno())
+        os.dup2(se.fileno(), sys.stderr.fileno())
+       
+        # write pidfile
+        atexit.register(self.delpid)
+        pid = str(os.getpid())
+        file(self.pidfile,'w+').write("%s\n" % pid)
+
+    def delpid(self):
+        os.remove(self.pidfile)
+
     def start(self):
+        """
+        Start the smart agent, daemon process 
+        """
+        # Check for a pidfile to see if the daemon already runs
+        try:
+            pf = file(self.pidfile,'r')
+            pid = int(pf.read().strip())
+            pf.close()
+        except IOError:
+            pid = None
+       
+        if pid:
+            message = "pidfile %s already exist. Daemon already running?\n"
+            sys.stderr.write(message % self.pidfile)
+            sys.exit(1)
+
+        # Start the daemon
+        self.daemonize()
+        self.run()
+
+    def run(self):
         self.messaging.start_consuming()
 
     def create_database_instance(self, msg):
