@@ -16,7 +16,7 @@
 SQLAlchemy models for the reddwarf datastore
 """
 
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 
 from nova.db.sqlalchemy.models import NovaBase
@@ -80,17 +80,17 @@ class DbSnapShots(BASE, NovaBase):
 
     __tablename__ = 'database_snapshots'
     
-    created_at = Column('created_at', DateTime(timezone=False)),
-    updated_at = Column('updated_at', DateTime(timezone=False)),
-    deleted_at = Column('deleted_at', DateTime(timezone=False)),
-    deleted = Column('deleted', Boolean(create_constraint=True, name=None)),
-    id = Column('id', Integer(), primary_key=True),
-    uuid = Column('uuid', String(length=36), index=True, unique=True),
-    instance_uuid = Column('instance_uuid', String(length=36)),
-    name = Column('name', String(length=255)),
-    state = Column('state', Integer()),
-    user_id = Column('user_id', String(length=32), index=True, unique=False),
-    project_id = Column('project_id', String(length=32)),
-    storage_uri = Column('storage_uri', String(length=255)),
-    storage_user_id = Column('storage_user_id', String(length=32)),
-    storage_size = Column('storage_size', Integer()))
+    created_at = Column('created_at', DateTime(timezone=False))
+    updated_at = Column('updated_at', DateTime(timezone=False))
+    deleted_at = Column('deleted_at', DateTime(timezone=False))
+    deleted = Column('deleted', Boolean(create_constraint=True, name=None))
+    id = Column('id', Integer(), primary_key=True)
+    uuid = Column('uuid', String(length=36), index=True, unique=True)
+    instance_uuid = Column('instance_uuid', String(length=36))
+    name = Column('name', String(length=255))
+    state = Column('state', Integer())
+    user_id = Column('user_id', String(length=32), index=True, unique=False)
+    project_id = Column('project_id', String(length=32))
+    storage_uri = Column('storage_uri', String(length=255))
+    storage_user_id = Column('storage_user_id', String(length=32))
+    storage_size = Column('storage_size', Integer())
