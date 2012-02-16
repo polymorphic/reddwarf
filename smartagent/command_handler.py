@@ -287,8 +287,9 @@ class MysqlCommandHandler:
             """ start background process for checker """
             checker_process = Process(target=self.backup_process_checker, args=(inno_process.pid, keyword, log_path))
             checker_process.start()
+            LOG.debug('checker process started')
         else:
-            LOG.error("snapshot is not ready for preparation") 
+            LOG.error("snapshot is not ready for preparation")
         
 def main():
     """ main program """
@@ -296,6 +297,6 @@ def main():
     handler.reset_user_password('root', 'hpcs')
     handler.create_db_snapshot(path='/var/lib/mysql-backup/', path_specifier='uuid')
     #handler.prepare_db_snapshot(path='/var/lib/mysql-backup/', path_specifier='uuid')
-    
+
 if __name__ == '__main__':
     main()
