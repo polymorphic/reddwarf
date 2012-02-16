@@ -26,28 +26,28 @@ from nova import test
 authenticated = False
 
 env = os.environ.copy()
-auth_username = env.get("OPENSTACK_USERNAME","")
-auth_password = env.get("OPENSTACK_PASSWORD","")
-auth_tenantID = env.get("OPENSTACK_TENANTID","")
+AUTH_USERNAME = env.get("OPENSTACK_USERNAME","")
+AUTH_PASSWORD = env.get("OPENSTACK_PASSWORD","")
+AUTH_TENANTID = env.get("OPENSTACK_TENANTID","")
 
 auth_token = ""
-auth_url = "region-a.geo-1.identity.hpcloudsvc.com"
-auth_port = 35357
-auth_path = "/v2.0/tokens"
-auth_headers = {"Content-type": "application/json",
+AUTH_URL = "region-a.geo-1.identity.hpcloudsvc.com"
+AUTH_PORT = 35357
+AUTH_PATH = "/v2.0/tokens"
+AUTH_HEADERS = {"Content-type": "application/json",
                 "Accept": "application/json"}
 
-object_url = ""
-object_path = ""
+OBJECT_URL = ""
+OBJECT_PATH = ""
 
-image_url = ""
-image_path = ""
+IMAGE_URL = ""
+IMAGE_PATH = ""
 
-blockstorage_url = ""
-blockstorage_path = ""
+BLOCKSTORAGE_URL = ""
+BLOCKSTORAGE_PATH = ""
 
-compute_url = "az-2.region-a.geo-1.compute.hpcloudsvc.com"
-compute_path = "/v1.1/%s/" % auth_tenantID
+COMPUTE_URL = "az-2.region-a.geo-1.compute.hpcloudsvc.com"
+COMPUTE_PATH = "/v1.1/%s/" % AUTH_TENANTID
     
 
 class HPCSTest(test.TestCase):
@@ -55,10 +55,10 @@ class HPCSTest(test.TestCase):
     
     def get_authtoken(self):
         """Get authentication token"""
-        jsonRequest = """{"auth":{"passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName":"%s"}}""" % (auth_username, auth_password, auth_username)
+        jsonRequest = """{"auth":{"passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName":"%s"}}""" % (AUTH_USERNAME, AUTH_PASSWORD, AUTH_USERNAME)
         
-        req = httplib2.HTTPSConnectionWithTimeout(auth_url, auth_port)
-        req.request("POST", auth_path, jsonRequest, auth_headers)
+        req = httplib2.HTTPSConnectionWithTimeout(AUTH_URL, AUTH_PORT)
+        req.request("POST", AUTH_PATH, jsonRequest, AUTH_HEADERS)
         response = req.getresponse()
         responseContent = response.read()
         
@@ -80,8 +80,6 @@ class HPCSTest(test.TestCase):
         
         if(authenticated != True) :
             self.get_authtoken()
-        else : 
-            print "Authentication Token : " + auth_token
     
 #    def tearDown(self):
 #        super(HPCSTest, self).tearDown()
@@ -91,10 +89,10 @@ class HPCSTest(test.TestCase):
         """Test to authenticate a user"""
         print("Testing authentication")
         
-        jsonRequest = """{"auth":{"passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName":"%s"}}""" % (auth_username, auth_password, auth_username)
+        jsonRequest = """{"auth":{"passwordCredentials":{"username":"%s", "password":"%s"}, "tenantName":"%s"}}""" % (AUTH_USERNAME, AUTH_PASSWORD, AUTH_USERNAME)
         
-        req = httplib2.HTTPSConnectionWithTimeout(auth_url, auth_port)
-        req.request("POST", auth_path, jsonRequest, auth_headers)
+        req = httplib2.HTTPSConnectionWithTimeout(AUTH_URL, AUTH_PORT)
+        req.request("POST", AUTH_PATH, jsonRequest, AUTH_HEADERS)
         response = req.getresponse()
         responseContent = response.read()
         
@@ -107,8 +105,8 @@ class HPCSTest(test.TestCase):
         """Test to get list of instances from nova"""
         print("Testing instances call")
         
-        req = httplib2.HTTPSConnectionWithTimeout(compute_url)
-        req.request("GET", compute_path + "servers", "", self.tokenHeader())
+        req = httplib2.HTTPSConnectionWithTimeout(COMPUTE_URL)
+        req.request("GET", COMPUTE_PATH + "servers", "", self.tokenHeader())
         response = req.getresponse()
         responseContent = response.read()
         
@@ -121,8 +119,8 @@ class HPCSTest(test.TestCase):
         """Test to get list of instances with details from nova"""
         print("Testing instances details call")
         
-        req = httplib2.HTTPSConnectionWithTimeout(compute_url)
-        req.request("GET", compute_path + "servers/detail", "", self.tokenHeader())
+        req = httplib2.HTTPSConnectionWithTimeout(COMPUTE_URL)
+        req.request("GET", COMPUTE_PATH + "servers/detail", "", self.tokenHeader())
         response = req.getresponse()
         responseContent = response.read()
         
@@ -154,8 +152,8 @@ class HPCSTest(test.TestCase):
     def test_flavors_list(self):
         """Test to list out a list of flavors available"""
         print("Testing flavors call")
-        req = httplib2.HTTPSConnectionWithTimeout(compute_url)
-        req.request("GET", compute_path + "flavors", "", self.tokenHeader())
+        req = httplib2.HTTPSConnectionWithTimeout(COMPUTE_URL)
+        req.request("GET", COMPUTE_PATH + "flavors", "", self.tokenHeader())
         response = req.getresponse()
         responseContent = response.read()
         
@@ -167,8 +165,8 @@ class HPCSTest(test.TestCase):
         """Test to list out a list of flavors with details"""
         print("Testing flavor details call")
         
-        req = httplib2.HTTPSConnectionWithTimeout(compute_url)
-        req.request("GET", compute_path + "flavors/detail", "", self.tokenHeader())
+        req = httplib2.HTTPSConnectionWithTimeout(COMPUTE_URL)
+        req.request("GET", COMPUTE_PATH + "flavors/detail", "", self.tokenHeader())
         response = req.getresponse()
         responseContent = response.read()
         
