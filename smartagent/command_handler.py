@@ -23,6 +23,9 @@ from smartagent_persistence import DatabaseManager
 import logging
 import random
 from result_state import ResultState
+import os
+from multiprocessing import Process
+import time
 
 logging.basicConfig()
 
@@ -43,7 +46,6 @@ def write_dotmycnf(user='os_admin', password='hpcs'):
     mycf = open ('/root/.my.cnf', 'w')
     mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
   
-
 class MysqlCommandHandler:
     """ Class for passing commands to mysql """
     
@@ -52,6 +54,67 @@ class MysqlCommandHandler:
         self.persistence_agent = DatabaseManager(host_name=host_name
             , database_name=database_name, config_file=config_file)
         self.persistence_agent.open_connection()
+
+    def create_user(self, username, host='localhost',
+                    newpassword=random_string()):
+        """ create a new user """
+        result = ResultState.NO_CONNECTION
+        sql_commands = []
+
+        # Prepare SQL query to UPDATE required records
+        sql_create = \
+        "grant all privileges on *.* to '%s'@'%s' identified by '%s'"\
+        % (username, host, newpassword)
+        sql_commands.append(sql_create)
+       
+        # Open database connection
+        try:
+            self.persistence_agent.execute_sql_commands(sql_commands)
+            result = ResultState.SUCCESS
+        except _mysql.Error:
+            result = ResultState.FAILED
+            LOG.error("Reset user password failed")
+        return result
+
+    def delete_user(self, username):
+        """ delete the user, all grants """
+        result = ResultState.NO_CONNECTION
+        sql_commands = []
+        
+        # Prepare SQL query to UPDATE required records
+        sql_delete = \
+        "delete from mysql.user where User = '%s'" % (username)
+        sql_flush = "FLUSH PRIVILEGES"
+        sql_commands.append(sql_delete)
+        sql_commands.append(sql_flush)
+       
+        # Open database connection
+        try:
+            self.persistence_agent.execute_sql_commands(sql_commands)
+            result = ResultState.SUCCESS
+        except _mysql.Error:
+            result = ResultState.FAILED
+            LOG.error("delete user '%s' failed" % (username))
+        return result
+
+    def delete_user_host(self, username, host):
+        """ delete the user, specific user@host grant """
+        result = ResultState.NO_CONNECTION
+        
+        # Prepare SQL query to UPDATE required records
+        sql_delete = \
+        "drop user '%s'@'%s'" % (username, host)
+        sql_commands = []
+        sql_commands.append(sql_delete)
+       
+        # Open database connection
+        try:
+            self.persistence_agent.execute_sql_commands(sql_commands)
+            result = ResultState.SUCCESS
+        except _mysql.Error:
+            result = ResultState.FAILED
+            LOG.error("delete user '%s'@'%s' failed" % (username, host))
+        return result
 
     def reset_user_password(self, username='root', newpassword='something'):
         """ reset the user's password """
@@ -84,14 +147,16 @@ class MysqlCommandHandler:
         # SQL statement to change agent password 
         sql = "SET PASSWORD FOR '%s'@'localhost'"\
         " PASSWORD('%s')" % (username, newpassword)
+        sql_commands = []
+        sql_commands.append(sql)
        
         # Open database connection
         try: 
             # Execute the SQL command
-            self.persistence_agent.execute_sql_commands(sql)
+            self.persistence_agent.execute_sql_commands(sql_commands)
             result = ResultState.SUCCESS
             # write the .my.cnf for the agent user so the agent can connect 
-            write_dotmycnf('os_admin', newpassword)
+            write_dotmycnf(username, newpassword)
             
         except _mysql.Error:
             result = ResultState.FAILED
@@ -99,11 +164,102 @@ class MysqlCommandHandler:
 
         return result
 
+    def create_database(self, database):
+        """ Create a database """
+        # ensure the variable database is set
+        try:
+            database 
+        except NameError:
+            result = ResultState.FAILED
+            LOG.error("Create database failed : no database defined")
+            return result
 
+        result = ResultState.NO_CONNECTION
+        
+        sql_create = \
+        "create database `%s`" % (database)
+        sql_commands = []
+        sql_commands.append(sql_create)
+       
+        # Open database connection
+        try:
+            self.persistence_agent.execute_sql_commands(sql_commands)
+            result = ResultState.SUCCESS
+        except _mysql.Error:
+            result = ResultState.FAILED
+            LOG.error("Create database failed")
+        return result
+
+    def drop_database(self, database):
+        """ Drop a database """
+        # ensure the variable database is set
+        try:
+            database 
+        except NameError:
+            result = ResultState.FAILED
+            LOG.error("Drop database failed : no database defined")
+            return result
+
+        result = ResultState.NO_CONNECTION
+        
+        sql_drop = \
+        "drop database `%s`" % (database)
+        sql_commands = []
+        sql_commands.append(sql_drop)
+       
+        # Open database connection
+        try:
+            self.persistence_agent.execute_sql_commands(sql_commands)
+            result = ResultState.SUCCESS
+        except _mysql.Error:
+            result = ResultState.FAILED
+            LOG.error("Drop database failed")
+        return result
+
+    def backup_process_checker(self, process_id):
+        """ background process checking if innobackupex is still running and 
+            if the backup snapshot has been created successfully at the end """
+            
+        fname = '/root/innobackupex.log'
+        target_str = "innobackupex: completed OK!"
+        
+        while os.path.exists("/proc/%s" % process_id):
+            LOG.debug('innobackupex is still running')
+            time.sleep(5)
+        
+        """ check the last line of innobackupex log to see its status """
+        file = open(fname, "r")
+        last_lines = file.readlines()[-1:]
+        
+        for line in last_lines:
+            print line
+            if target_str in line:
+                LOG.debug("innobackupex runs successfully")
+                return ResultState.SUCCESS
+            else:
+                return ResultState.FAILED
+                LOG.error("backup process failed")
+    
+           
+    def create_db_snapshot(self, path='/var/lib/mysql-backup/', path_specifier='uuid'):
+        
+        path += path_specifier
+        innobackup_cmd= "innobackupex --no-timestamp %s > /root/innobackupex.log 2>&1" % path
+        
+        inno_process = Process(target=os.system, args=(innobackup_cmd,))
+        inno_process.start()
+        LOG.debug('innobackupex process started')
+        
+        """ start background process for checker """
+        checker_process = Process(target=self.backup_process_checker, args=(inno_process.pid,))
+        checker_process.start()
+        LOG.debug('checker process started')  
+        
 def main():
     """ main program """
     handler = MysqlCommandHandler()
     handler.reset_user_password('root', 'hpcs')
+    handler.create_db_snapshot(path='/var/lib/mysql-backup/', path_specifier='uuid')
 
 if __name__ == '__main__':
     main()

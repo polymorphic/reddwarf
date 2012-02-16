@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 # Copyright 2012 OpenStack LLC.
@@ -22,7 +23,8 @@ It mocks SmartAgent and depends on pika AMQP library but has no dependency
 on any RedDwarf code.
 """
 
-#!/usr/bin/env python
+from subprocess import call
+import json
 
 import os
 import logging
@@ -74,6 +76,15 @@ class SmartAgent:
         result = None
         return result
 
+    def create_database(self, msg):
+        handler = command_handler.MysqlCommandHandler()
+        result = handler.create_database(msg['args']['database'])
+        return result
+
+    def restart_database(self, msg):
+        result = call("sudo service mysql restart", shell=True)
+        return result
+
     def restart_database_instance(self, msg):
         LOG.debug('Functionality not implemented')
         result = None
@@ -83,6 +94,19 @@ class SmartAgent:
         handler = MysqlCommandHandler() # TODO extract into instance variable
         result = handler.reset_user_password(
             self.agent_username, msg['args']['password'])
+        return result
+
+    def create_user(self, msg):
+        handler = command_handler.MysqlCommandHandler()
+        result = handler.create_user(
+            msg['args']['username'], 
+            msg['args']['hostname'],
+            msg['args']['password'])
+        return result
+
+    def delete_user(self, msg):
+        handler = command_handler.MysqlCommandHandler()
+        result = handler.delete_user(msg['args']['username'])
         return result
 
     def take_database_snapshot(self, msg):
@@ -143,6 +167,9 @@ class SmartAgent:
         result = None
         failure = None
 
+        # will use this for reset agent password
+        # agent_username = 'os_admin'
+        
         # Make sure the method key is part of the JSON - if not, it's
         # invalid.
         # TODO: Return appropriate result/failure values (currently 
@@ -160,6 +187,14 @@ class SmartAgent:
             result = self.delete_database_instance(msg)
         elif method == 'restart_instance':
             result = self.restart_database_instance(msg)
+        elif method == 'restart_database':
+            result = self.restart_database(msg)
+        elif method == 'create_user':
+            result = self.create_user(msg)
+        elif method == 'delete_user':
+            result = self.delete_user(msg)
+        elif method == 'create_database':
+            result = self.create_database(msg)
         elif method == 'reset_password':
             result = self.reset_password(msg)
         elif method == 'take_snapshot':
