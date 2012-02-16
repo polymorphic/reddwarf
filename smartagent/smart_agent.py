@@ -76,15 +76,37 @@ class SmartAgent:
         result = None
         return result
 
+    def create_database(self, msg):
+        handler = command_handler.MysqlCommandHandler()
+        result = handler.create_database(msg['args']['database'])
+        return result
+
+    def drop_database(self, msg):
+        handler = command_handler.MysqlCommandHandler()
+        result = handler.drop_database(msg['args']['database'])
+        return result
+
     def restart_database_instance(self, msg):
-        LOG.debug('Functionality not implemented')
-        result = None
+        result = call("sudo service mysql restart", shell=True)
         return result
 
     def reset_password(self, msg):
         handler = command_handler.MysqlCommandHandler() # TODO extract into instance variable
         result = handler.reset_user_password(
             self.agent_username, msg['args']['password'])
+        return result
+
+    def create_user(self, msg):
+        handler = command_handler.MysqlCommandHandler()
+        result = handler.create_user(
+            msg['args']['username'], 
+            msg['args']['hostname'],
+            msg['args']['password'])
+        return result
+
+    def delete_user(self, msg):
+        handler = command_handler.MysqlCommandHandler()
+        result = handler.delete_user(msg['args']['username'])
         return result
 
     def take_database_snapshot(self, msg):
@@ -155,62 +177,6 @@ class SmartAgent:
         try:
             method = msg['method']
         except KeyError:
-            print "KeyError exception - unexpected message format:"
-            print msg
-            return { 'result': result, 'failure': failure }
-        
-        # Do work based on passed method value:
-        print ("     [-] Method requested", str(self.msg_count), 
-               ": ", msg['method'])
-        
-        if method == 'reset_password':
-            handler = command_handler.MysqlCommandHandler()
-            result = handler.reset_user_password(
-                msg['args']['username'], msg['args']['password'])
-        elif method == 'check_mysql_status':
-            checker = MySqlChecker()
-            result = checker.check_if_running(sleep_time_seconds=3, 
-                                              number_of_checks=5)
-            if result:
-                result = RUNNING
-            else:
-                result = NOSTATE
-        elif method == 'start':
-            result = call("sudo service mysql start", shell=True)
-        elif method == 'stop':
-            result = call("sudo service mysql stop", shell=True)
-        elif method == 'restart':
-            result = call("sudo service mysql restart", shell=True)
-        elif method == 'create_user':
-            handler = command_handler.MysqlCommandHandler()
-            result = handler.create_user(
-                msg['args']['username'], 
-                msg['args']['hostname'],
-                msg['args']['password'])
-        elif method == 'list_users':
-            pass
-        elif method == 'delete_user':
-            handler = command_handler.MysqlCommandHandler()
-            result = handler.delete_user(msg['args']['username'])
-        elif method == 'create_database':
-            handler = command_handler.MysqlCommandHandler()
-            result = handler.create_database(msg['args']['database'])
-        elif method == 'list_databases':
-            pass
-        elif method == 'drop_database':
-            handler = command_handler.MysqlCommandHandler()
-            result = handler.drop_database(msg['args']['database'])
-        elif method == 'enable_root':
-            pass
-        elif method == 'disable_root':
-            pass
-        elif method == 'is_root_enabled':
-            pass
-        elif method == 'prepare':
-            pass
-        elif method == 'update_status':
-            pass
-=======
             LOG.error('Message missing "method" element: %s', msg)
             return {'result': result, 'failure': failure}
         LOG.debug ('Dispatching %s (%d)', method, self.msg_count)
@@ -221,6 +187,16 @@ class SmartAgent:
             result = self.delete_database_instance(msg)
         elif method == 'restart_instance':
             result = self.restart_database_instance(msg)
+        elif method == 'create_user':
+            result = self.create_user(msg)
+        elif method == 'delete_user':
+            result = self.delete_user(msg)
+        elif method == 'create_database':
+            reseult = self.create_database(msg)
+        elif method == 'list_databases':
+            pass
+        elif method == 'drop_database':
+            result = self.drop_database(msg)
         elif method == 'reset_password':
             result = self.reset_password(msg)
         elif method == 'take_snapshot':
@@ -231,7 +207,6 @@ class SmartAgent:
             result = self.delete_database_snapshot(msg)
         elif method == 'check_mysql_status':
             result = self.check_status()
->>>>>>> bd95a74100fb4332f9f591a8902c01afbcb00f86
         else:
             result = self.get_system_info()
         return {'result': result, 'failure': failure}
