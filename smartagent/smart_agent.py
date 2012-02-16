@@ -81,13 +81,13 @@ class SmartAgent:
         result = handler.create_database(msg['args']['database'])
         return result
 
-    def drop_database(self, msg):
-        handler = command_handler.MysqlCommandHandler()
-        result = handler.drop_database(msg['args']['database'])
+    def restart_database(self, msg):
+        result = call("sudo service mysql restart", shell=True)
         return result
 
     def restart_database_instance(self, msg):
-        result = call("sudo service mysql restart", shell=True)
+        LOG.debug('Functionality not implemented')
+        result = None
         return result
 
     def reset_password(self, msg):
@@ -187,16 +187,14 @@ class SmartAgent:
             result = self.delete_database_instance(msg)
         elif method == 'restart_instance':
             result = self.restart_database_instance(msg)
+        elif method == 'restart_database':
+            result = self.restart_database(msg)
         elif method == 'create_user':
             result = self.create_user(msg)
         elif method == 'delete_user':
             result = self.delete_user(msg)
         elif method == 'create_database':
             result = self.create_database(msg)
-        elif method == 'list_databases':
-            pass
-        elif method == 'drop_database':
-            result = self.drop_database(msg)
         elif method == 'reset_password':
             result = self.reset_password(msg)
         elif method == 'take_snapshot':
