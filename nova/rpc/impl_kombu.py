@@ -145,6 +145,44 @@ class DirectConsumer(ConsumerBase):
                 **options)
 
 
+class PassiveConsumer(ConsumerBase):
+    """Queue/consumer class for non-exclusive direct queue"""
+
+    def __init__(self, channel, topic, callback, tag, **kwargs):
+        """Init a non-exclusive 'direct' queue so
+           it can be shared by different connections.
+
+        'channel' is the amqp channel to use
+        'topic' is the exchange name to listen on
+        'callback' is the callback to call when messages are received
+        'tag' is a unique ID for the consumer on the channel
+
+        Other kombu options may be passed
+        """
+
+        LOG.debug("Declaring PassiveConsumer exchange-name %s", topic)
+        LOG.debug("Declaring PassiveConsumer routing-key %s", topic)
+
+        # Default options
+        options = {'durable': False,
+                   'auto_delete': True,
+                   'exclusive': False}
+        options.update(kwargs)
+        exchange = kombu.entity.Exchange(
+            name=topic,
+            type='direct',
+            durable=options['durable'],
+            auto_delete=options['auto_delete'])
+        super(PassiveConsumer, self).__init__(
+            channel,
+            callback,
+            tag,
+            name=topic,
+            exchange=exchange,
+            routing_key=topic,
+            **options)
+
+
 class TopicConsumer(ConsumerBase):
     """Consumer class for 'topic'"""
 
@@ -460,6 +498,13 @@ class Connection(object):
         responses for call/multicall
         """
         self.declare_consumer(DirectConsumer, topic, callback)
+
+    def declare_passive_consumer(self, topic, callback):
+        """Create a 'passive' queue.
+        In nova's use, this is generally a msg_id queue used for
+        responses for call/multicall
+        """
+        self.declare_consumer(PassiveConsumer, topic, callback)
 
     def declare_topic_consumer(self, topic, callback=None):
         """Create a 'topic' consumer."""
@@ -808,7 +853,7 @@ def listen(exchange, msg_handler):
     """Passively listen on direct exchange for phone home messages."""
     conn = ConnectionContext()
     wait_msg = PassiveWaiter(conn, msg_handler)
-    conn.declare_direct_consumer(exchange, wait_msg)
+    conn.declare_passive_consumer(exchange, wait_msg)
     list(wait_msg)
     return wait_msg
 
