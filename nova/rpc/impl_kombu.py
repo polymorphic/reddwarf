@@ -122,8 +122,7 @@ class DirectConsumer(ConsumerBase):
         Other kombu options may be passed
         """
 
-        LOG.debug("Declaring DirectConsumer exc-name %s", msg_id)
-        LOG.debug("Declaring DirectConsumer que-name %s", msg_id)
+        LOG.debug("Declaring DirectConsumer exchange-name %s", msg_id)
         LOG.debug("Declaring DirectConsumer routing-key %s", msg_id)
 
         # Default options
@@ -165,8 +164,7 @@ class TopicConsumer(ConsumerBase):
                 'exclusive': False}
         options.update(kwargs)
 
-        LOG.debug("Declaring TopicConsumer exc-name  %s", FLAGS.control_exchange)
-        LOG.debug("Declaring TopicConsumer que-name %s", topic)
+        LOG.debug("Declaring TopicConsumer exchange-name  %s", FLAGS.control_exchange)
         LOG.debug("Declaring TopicConsumer routing-key %s", topic)
 
         exchange = kombu.entity.Exchange(
@@ -702,20 +700,20 @@ class MulticallWaiter(object):
         self._iterator = None
         self._connection.close()
 
-    def __call__(self, message):
+    def __call__(self, data):
         """The consume() callback will call this.  Store the result."""
-        LOG.debug(_('rpc.call response raw data received: %r') % (message,))
-        data = message
+        LOG.debug(_('rpc.call response raw data received: %r') % (data,))
+        message = data
         try:
-            data = ast.literal_eval(message)
+            message = ast.literal_eval(data)
         except Exception:
             LOG.exception('Invalid string received from message.')
             pass
 
-        if data['failure']:
-            self._result = RemoteError(*data['failure'])
+        if message['failure']:
+            self._result = RemoteError(*message['failure'])
         else:
-            self._result = data['result']
+            self._result = message['result']
 
     def __iter__(self):
         """Return a result until we get a 'None' response from consumer"""
@@ -787,9 +785,7 @@ def fanout_cast(context, topic, msg):
 
 def msg_reply(msg_id, reply=None, failure=None):
     """Sends a reply or an error on the channel signified by msg_id.
-
     Failure should be a sys.exc_info() tuple.
-
     """
     with ConnectionContext() as conn:
         if failure:
@@ -806,3 +802,46 @@ def msg_reply(msg_id, reply=None, failure=None):
                             for k, v in reply.__dict__.iteritems()),
                     'failure': failure}
         conn.direct_send(msg_id, msg)
+
+
+def listen(exchange, msg_handler):
+    """Passively listen on direct exchange for phone home messages."""
+    conn = ConnectionContext()
+    wait_msg = PassiveWaiter(conn, msg_handler)
+    conn.declare_direct_consumer(exchange, wait_msg)
+    list(wait_msg)
+    return wait_msg
+
+
+class PassiveWaiter(object):
+    """Passively wait on the channel for multiple messages."""
+    def __init__(self, connection, msg_handler):
+        self._connection = connection
+        self._msg_handler = msg_handler
+        self._iterator = connection.iterconsume()
+        self._done = False
+
+    def done(self):
+        self._done = True
+        self._iterator.close()
+        self._iterator = None
+        self._connection.close()
+
+    def __call__(self, data):
+        """The consume() callback will call this.  Store the result."""
+        LOG.debug(_('rpc.listen raw data received: %r') % (data,))
+        message = data
+        try:
+            message = ast.literal_eval(data)
+        except Exception:
+            LOG.exception('Invalid string received from message.')
+            pass
+        # pass the message dictionary to message handler class
+        self._msg_handler.process_message(message)
+
+    def __iter__(self):
+        """Keep consuming incoming messages"""
+        if self._done:
+            raise StopIteration
+        while True:
+            self._iterator.next()

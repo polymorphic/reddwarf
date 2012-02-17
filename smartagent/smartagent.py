@@ -181,6 +181,18 @@ class SmartAgent:
 
     def run(self):
         self.messaging.start_consuming()
+        # phone home the initial status to API Server
+        state = self.check_status()
+        hostname = os.uname()[1]
+        message = {'method': 'update_instance_state', 'hostname': hostname, 'state': str(state)}
+        try:
+            self.messaging.phone_home(message)
+            LOG.debug('Initial phone home message sent: %s', message)
+            # start consuming rpc messages from API Server
+            self.messaging.start_consuming()
+        except Exception as err:
+            LOG.error("Failed to connect to MQ due to channel not available: %s", err)
+            pass
 
     def create_database_instance(self, msg):
         LOG.debug('Functionality not implemented')

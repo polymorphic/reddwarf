@@ -138,3 +138,14 @@ class MessagingService():
         end_message = {'result': None, 'failure': None}
         self.send_response(end_message, props, response_id)
 
+    def phone_home(self, message, exchange='phonehome'):
+        """Sends phone home message to the direct exchange -
+           the message should be a dictionary.
+
+           Arguments:   self
+                        message -- Dictionary containing the phone home message
+                        exchange -- String containing the name of the phone home exchange
+           Return type: None"""
+        self.channel.basic_publish(exchange=exchange,
+            routing_key=exchange,
+            body=str(message))
