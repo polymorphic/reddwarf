@@ -501,8 +501,8 @@ class Connection(object):
 
     def declare_passive_consumer(self, topic, callback):
         """Create a 'passive' queue.
-        In nova's use, this is generally a msg_id queue used for
-        responses for call/multicall
+        In reddwarf's use, this is generally a direct queue used for
+        passively listening on phone home message from remote agents
         """
         self.declare_consumer(PassiveConsumer, topic, callback)
 
