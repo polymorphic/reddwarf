@@ -180,7 +180,6 @@ class SmartAgent:
         self.start()
 
     def run(self):
-        self.messaging.start_consuming()
         # phone home the initial status to API Server
         state = self.check_status()
         hostname = os.uname()[1]
