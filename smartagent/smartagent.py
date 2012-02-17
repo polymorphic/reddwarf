@@ -38,7 +38,7 @@ logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)8s %(message)s',
                     filemode='a')
 LOG = logging.getLogger()
-fh = logging.FileHandler('./smartagent.log')
+fh = logging.FileHandler('/var/log/smartagent.log')
 fh.setLevel(logging.DEBUG)
 LOG.addHandler(fh)
 
