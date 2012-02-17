@@ -270,7 +270,8 @@ class ControllerV2(object):
         instance_name = body['instance']['name']
 
         # This should be fetched from Flags, image should contain mysqld and agent
-        image_id = '101'
+        image_id = '387'
+        flavor_ref = '102'
 
         # Create the Volume before hand
         # volume_ref = self.create_volume(context, body)
@@ -290,7 +291,7 @@ class ControllerV2(object):
         # routing key for Agent
         host_name = str(utils.gen_uuid());
         
-        server_resp = self._try_create_server(req, host_name, image_id)
+        server_resp = self._try_create_server(req, host_name, image_id, flavor_ref)
         
         #LOG.debug("Server_Response type: " + server_resp.getid(server_resp))
         from inspect import getmembers
@@ -308,7 +309,7 @@ class ControllerV2(object):
         dbapi.instance_create(instance_name, server_resp)
 
         # check and update instance state
-        #self.guest_api.check_mysql_status(context, instance_id)
+        self.guest_api.check_mysql_status(context, instance_id)
 
         dbapi.guest_status_create(local_id)
 
@@ -360,7 +361,7 @@ processing of the result etc.
             LOG.error(e)
             raise exception.UnprocessableEntity()
 
-    def _try_create_server(self, req, instance_name, image_id):
+    def _try_create_server(self, req, instance_name, image_id, flavor_ref):
         """Handle the call to create a server through novaclient.
 
 Separating this so we could do retries in the future and other
@@ -368,7 +369,7 @@ processing of the result etc.
 """
         try:
 
-            server = self.client.create(instance_name, '227', image_id,'hpdefault',['default'])
+            server = self.client.create(instance_name, image_id, flavor_ref,'hpdefault',['default'])
 
             #server = self.server_controller.create(req, body)
             if not server or isinstance(server, faults.Fault)\
