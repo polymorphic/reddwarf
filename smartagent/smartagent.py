@@ -34,10 +34,13 @@ from smartagent_messaging import MessagingService
 from check_mysql_status import MySqlChecker
 from command_handler import MysqlCommandHandler
 
-logging.basicConfig()
-
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)8s %(message)s',
+                    filemode='a')
+LOG = logging.getLogger()
+fh = logging.FileHandler('./smartagent.log')
+fh.setLevel(logging.DEBUG)
+LOG.addHandler(fh)
 
 # State codes for Reddwarf API
 NOSTATE = 0x00
@@ -78,7 +81,7 @@ class SmartAgent:
         return result
 
     def create_database(self, msg):
-        handler = command_handler.MysqlCommandHandler()
+        handler = MysqlCommandHandler()
         result = handler.create_database(msg['args']['database'])
         return result
 
