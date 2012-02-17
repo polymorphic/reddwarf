@@ -26,9 +26,9 @@ on any RedDwarf code.
 from subprocess import call
 import json
 
-import os
+import sys, os, time, atexit
+from signal import SIGTERM 
 import logging
-import time
 
 from smartagent_messaging import MessagingService
 from check_mysql_status import MySqlChecker
@@ -37,8 +37,10 @@ from command_handler import MysqlCommandHandler
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)8s %(message)s',
                     filemode='a')
+
+AGENT_HOME='/home/nova';
 LOG = logging.getLogger()
-fh = logging.FileHandler('/var/log/smartagent.log')
+fh = logging.FileHandler(AGENT_HOME + '/logs/smartagent.log')
 fh.setLevel(logging.DEBUG)
 LOG.addHandler(fh)
 
@@ -61,10 +63,10 @@ class SmartAgent:
     contents of the messages received."""
 
     def __init__(self, msg_service, 
-                pidfile='/home/nova/lock/smart_agent.pid',
-                stdin='/dev/null', 
-                stdout='/dev/null',
-                stderr='/dev/null'):
+                pidfile = AGENT_HOME + '/lock/smartagent.pid',
+                stdin = '/dev/null', 
+                stdout = '/dev/null',
+                stderr = '/dev/null'):
         """ Constructor method """
         self.stdin = stdin
         self.stdout = stdout
@@ -73,24 +75,27 @@ class SmartAgent:
         self.msg_count = 0
         self.messaging = msg_service
         self.messaging.callback = self.process_message
-        self.agent_username = 'root'
+        self.agent_username = 'os_admin'
         self.checker = MySqlChecker()  # TODO extract into instance variable
 
     def daemonize(self):
-        """ fork the daemon """
+        """ This method is for the purpose of the smart agent t
+        to run as a daemon and have better control over its running """
+
+        # fork the daemon 
         try:
             pid = os.fork()
             if pid > 0:
                 # exit first parent
                 sys.exit(0)
-            except OSError, e:
-                sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
-                sys.exit(1)
+        except OSError, e:
+            sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+            sys.exit(1)
        
-            # decouple from parent environment
-            os.chdir("/home/nova")
-            os.setsid()
-            os.umask(0)
+        # decouple from parent environment
+        os.chdir(AGENT_HOME)
+        os.setsid()
+        os.umask(0)
        
         # do second fork
         try:
@@ -98,7 +103,7 @@ class SmartAgent:
             if pid > 0:
                 # exit from second parent
                 sys.exit(0)
-         except OSError, e:
+        except OSError, e:
             sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
        
@@ -121,9 +126,8 @@ class SmartAgent:
         os.remove(self.pidfile)
 
     def start(self):
-        """
-        Start the smart agent, daemon process 
-        """
+        """ Start the smart agent, daemon process """
+
         # Check for a pidfile to see if the daemon already runs
         try:
             pf = file(self.pidfile,'r')
@@ -140,6 +144,40 @@ class SmartAgent:
         # Start the daemon
         self.daemonize()
         self.run()
+
+    def stop(self):
+        """ Stop the daemon """
+        # Get the pid from the pidfile
+        try:
+            pf = file(self.pidfile,'r')
+            pid = int(pf.read().strip())
+            pf.close()
+        except IOError:
+            pid = None
+
+        if not pid:
+            message = "pidfile %s does not exist. Daemon not running?\n"
+            sys.stderr.write(message % self.pidfile)
+            return # not an error in a restart
+
+        # Try killing the daemon process       
+        try:
+            while 1:
+                os.kill(pid, SIGTERM)
+                time.sleep(0.1)
+        except OSError, err:
+            err = str(err)
+            if err.find("No such process") > 0:
+                if os.path.exists(self.pidfile):
+                    os.remove(self.pidfile)
+                else:
+                    print str(err)
+                    sys.exit(1)
+
+    def restart(self):
+        """ Restart the daemon """
+        self.stop()
+        self.start()
 
     def run(self):
         self.messaging.start_consuming()
@@ -297,7 +335,22 @@ def main():
     msg_service = MessagingService()
     
     agent = SmartAgent(msg_service)
-    agent.start()
+    # act according to argument supplied
+    if len(sys.argv) == 2:
+        if 'start' == sys.argv[1]:
+            agent.start()
+        elif 'stop' == sys.argv[1]:
+            agent.stop()
+        elif 'restart' == sys.argv[1]:
+            agent.restart()
+        else:
+            print "unknown command"
+            sys.exit(2)
+        sys.exit(0)
+    else:
+        print "Usage: %s start|stop|restart" % sys.argv[0]
+        sys.exit(2)
+
 
 if __name__ == '__main__':
     main()
