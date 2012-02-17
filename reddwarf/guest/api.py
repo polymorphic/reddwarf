@@ -24,9 +24,10 @@ from nova import log as logging
 from nova import rpc
 from nova.db import api as nova_dbapi
 from nova.db import base
-from nova.compute import power_state
 from reddwarf.db import api as reddwarf_dbapi
 from reddwarf import rpc as reddwarf_rpc
+from reddwarf import exception
+
 
 FLAGS = flags.FLAGS
 LOG = logging.getLogger('nova.guest.api')
@@ -128,34 +129,67 @@ class API(base.Base):
         reddwarf_rpc.cast_with_consumer(context, topic, {"method": "upgrade"})
 
 
-    # smart agent operations go as follows
     def check_mysql_status(self, context, id):
         """Make a synchronous call to trigger smart agent for checking MySQL status"""
         instance = reddwarf_dbapi.instance_from_uuid(id)
-        LOG.debug("Trigger smart agent on Instance %s (%s) to check MySQL status and wait for response.", id, instance['hostname'])
+        LOG.debug("Triggering smart agent on Instance %s (%s) to check MySQL status.", id, instance['hostname'])
         result = rpc.call(context, instance['hostname'], {"method": "check_mysql_status"})
         # update instance state in guest_status table upon receiving smart agent response
         reddwarf_dbapi.guest_status_update(instance['internal_id'], int(result))
+        return result
 
 
-    def reset_password(self, context, id, password="hpcs"):
+    def reset_password(self, context, id, password='hpcs'):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
         instance = reddwarf_dbapi.instance_from_uuid(id)
-        LOG.debug("Trigger smart agent to reset password on Instance %s (%s) and wait for response.", id, instance['hostname'])
-        return rpc.call(context, instance['hostname'], {"method": "reset_password", "args": {"password": password}})
-
-
-    def list_database_snapshots(self, context, instance_id):
-        return {'result': 'success'}
+        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
+        return rpc.call(context, instance['hostname'],
+                {"method": "reset_password",
+                 "args": {"password": password}})
 
 
     def create_database_snapshot(self, context, instance_id):
         return {'result': 'success'}
 
 
-    def retrieve_database_snapshot(self, context, instance_id, snapshot_id):
+    def restore_database_snapshot(self, context, instance_id, snapshot_id):
         return {'result': 'success'}
 
 
-    def delete_database_snapshot(self, context, instance_id, snapshot_id):
-        return {'result': 'success'}
+class PhoneHomeMessageHandler():
+    """Proxy class to handle phone home messages sent from smart agent."""
+    def __init__(self):
+        self.msg_count = 0
+
+    def process_message(self, msg):
+        """Called by the phone home consumer whenever a message from smart agent is received."""
+        self.msg_count += 1
+        LOG.debug("Total number of phone home messages processed: %d", self.msg_count)
+        self._validate(msg)
+
+        # dispatch appropriate function based on value of the method key in the message."""
+        method = msg['method']
+        if method == 'update_instance_state':
+            self._update_instance_state(msg)
+        else:
+            LOG.exception("Cannot process undefined phone home method %s", method)
+
+
+    def _validate(self, msg):
+        """Validate that the request has all the required parameters"""
+        if not msg:
+            raise exception.BadRequest("Phone home message is empty.")
+        if not msg['method']:
+            raise exception.BadRequest("Required element/key 'method' was not specified in phone home message.")
+        if not msg['hostname']:
+            raise exception.BadRequest("Required element/key 'hostname' was not specified in phone home message.")
+        if not msg['state']:
+            raise exception.BadRequest("Required element/key 'state' was not specified in phone home message.")
+
+
+    def _update_instance_state(self, msg):
+        """Update instance state in guest_status table."""
+        instance = reddwarf_dbapi.instance_from_hostname(msg['hostname'])
+        state = int(msg['state'])
+        LOG.debug("Updating mysql instance state for Instance %s", instance['uuid'])
+        reddwarf_dbapi.guest_status_update(instance['internal_id'], state)

@@ -34,10 +34,13 @@ from smartagent_messaging import MessagingService
 from check_mysql_status import MySqlChecker
 from command_handler import MysqlCommandHandler
 
-logging.basicConfig()
-
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)8s %(message)s',
+                    filemode='a')
+LOG = logging.getLogger()
+fh = logging.FileHandler('/var/log/smartagent.log')
+fh.setLevel(logging.DEBUG)
+LOG.addHandler(fh)
 
 # State codes for Reddwarf API
 NOSTATE = 0x00
@@ -65,6 +68,13 @@ class SmartAgent:
         self.checker = MySqlChecker()  # TODO extract into instance variable
 
     def start(self):
+        # phone home the initial status to API Server
+        state = self.check_status()
+        hostname = os.uname()[1]
+        message = {'method': 'update_instance_state', 'hostname': hostname, 'state': str(state)}
+        self.messaging.phone_home(message)
+        LOG.debug('Initial phone home message sent: %s', message)
+        # start consuming rpc messages from API Server
         self.messaging.start_consuming()
 
     def create_database_instance(self, msg):
@@ -78,7 +88,7 @@ class SmartAgent:
         return result
 
     def create_database(self, msg):
-        handler = command_handler.MysqlCommandHandler()
+        handler = MysqlCommandHandler()
         result = handler.create_database(msg['args']['database'])
         return result
 
