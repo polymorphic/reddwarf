@@ -307,9 +307,6 @@ class ControllerV2(object):
 
         dbapi.instance_create(instance_name, server_resp)
 
-        # check and update instance state
-        #self.guest_api.check_mysql_status(context, instance_id)
-
         dbapi.guest_status_create(local_id)
 
         guest_state = self.get_guest_state_mapping([local_id])
