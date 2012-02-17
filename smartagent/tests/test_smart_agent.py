@@ -55,7 +55,7 @@ class SmartAgentUnitTest(unittest.TestCase):
 
     def test_check_mysql_status_not_running(self):
         """Test to see that the correct response is returned when a MySQL
-           server is running."""
+           server is not running."""
         
         self.agent.checker = self.mox.CreateMock(MySqlChecker)
         self.mox.StubOutWithMock(self.agent.checker, "check_if_running")
