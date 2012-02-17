@@ -179,6 +179,10 @@ class APIRouter(wsgi.Router):
                        controller=demo.create_resource(),
                        action="reset_password", conditions=dict(method=["POST"]))
 
+        mapper.connect("/{project_id}/instances/{instance_id}/smartagent",
+            controller=demo.create_resource(),
+            action="check_mysql_status", conditions=dict(method=["GET"]))
+
         mapper.connect("/", controller=versions.create_resource(),
                        action="dispatch")
 
