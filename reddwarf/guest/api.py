@@ -181,15 +181,18 @@ class PhoneHomeMessageHandler():
             raise exception.BadRequest("Phone home message is empty.")
         if not msg['method']:
             raise exception.BadRequest("Required element/key 'method' was not specified in phone home message.")
-        if not msg['hostname']:
-            raise exception.BadRequest("Required element/key 'hostname' was not specified in phone home message.")
-        if not msg['state']:
-            raise exception.BadRequest("Required element/key 'state' was not specified in phone home message.")
+        if not msg['args']:
+            raise exception.BadRequest("Required element/key 'args' was not specified in phone home message.")
+        else:
+            if not msg['args']['hostname']:
+                raise exception.BadRequest("Required element/key 'hostname' was not specified in phone home message.")
+            if not msg['args']['state']:
+                raise exception.BadRequest("Required element/key 'state' was not specified in phone home message.")
 
 
     def _update_instance_state(self, msg):
         """Update instance state in guest_status table."""
-        instance = reddwarf_dbapi.instance_from_hostname(msg['hostname'])
-        state = int(msg['state'])
+        instance = reddwarf_dbapi.instance_from_hostname(msg['args']['hostname'])
+        state = int(msg['args']['state'])
         LOG.debug("Updating mysql instance state for Instance %s", instance['uuid'])
         reddwarf_dbapi.guest_status_update(instance['internal_id'], state)

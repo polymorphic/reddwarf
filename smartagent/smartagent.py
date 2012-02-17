@@ -183,7 +183,8 @@ class SmartAgent:
         # phone home the initial status to API Server
         state = self.check_status()
         hostname = os.uname()[1]
-        message = {'method': 'update_instance_state', 'hostname': hostname, 'state': str(state)}
+        message = {"method": "update_instance_state",
+                   "args": {'hostname': hostname, 'state': str(state)}}
         try:
             self.messaging.phone_home(message)
             LOG.debug('Initial phone home message sent: %s', message)
