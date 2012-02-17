@@ -68,6 +68,13 @@ class SmartAgent:
         self.checker = MySqlChecker()  # TODO extract into instance variable
 
     def start(self):
+        # phone home the initial status to API Server
+        state = self.check_status()
+        hostname = os.uname()[1]
+        message = {'method': 'update_instance_state', 'hostname': hostname, 'state': str(state)}
+        self.messaging.phone_home(message)
+        LOG.debug('Initial phone home message sent: %s', message)
+        # start consuming rpc messages from API Server
         self.messaging.start_consuming()
 
     def create_database_instance(self, msg):
