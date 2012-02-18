@@ -23,12 +23,9 @@ It mocks SmartAgent and depends on pika AMQP library but has no dependency
 on any RedDwarf code.
 """
 
-from subprocess import call
-import json
-
-import sys, os, time, atexit
+import sys, os, time, atexit, logging
 from signal import SIGTERM 
-import logging
+from subprocess import call
 
 from smartagent_messaging import MessagingService
 from check_mysql_status import MySqlChecker
@@ -38,11 +35,11 @@ logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)8s %(message)s',
                     filemode='a')
 
-AGENT_HOME='/home/nova';
+AGENT_HOME = '/home/nova'
 LOG = logging.getLogger()
-fh = logging.FileHandler(AGENT_HOME + '/logs/smartagent.log')
-fh.setLevel(logging.DEBUG)
-LOG.addHandler(fh)
+FH = logging.FileHandler(AGENT_HOME + '/logs/smartagent.log')
+FH.setLevel(logging.DEBUG)
+LOG.addHandler(FH)
 
 # State codes for Reddwarf API
 NOSTATE = 0x00
@@ -63,20 +60,19 @@ class SmartAgent:
     contents of the messages received."""
 
     def __init__(self, msg_service, 
-                pidfile = AGENT_HOME + '/lock/smartagent.pid',
-                stdin = '/dev/null', 
-                stdout = '/dev/null',
-                stderr = '/dev/null'):
+                pidfile = AGENT_HOME + '/lock/smartagent.pid'):
         """ Constructor method """
-        self.stdin = stdin
-        self.stdout = stdout
-        self.stderr = stderr
+        # pylint thought too many arguments. But should keep around.
         self.pidfile = pidfile
+        self.stdin = '/dev/null' 
+        self.stdout = '/dev/null'
+        self.stderr = '/dev/null'
         self.msg_count = 0
         self.messaging = msg_service
         self.messaging.callback = self.process_message
         self.agent_username = 'os_admin'
-        self.checker = MySqlChecker()  # TODO extract into instance variable
+        # TODO extract into instance variable
+        self.checker = MySqlChecker()  
 
     def daemonize(self):
         """ This method is for the purpose of the smart agent t
@@ -88,8 +84,9 @@ class SmartAgent:
             if pid > 0:
                 # exit first parent
                 sys.exit(0)
-        except OSError, e:
-            sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+        except OSError, err:
+            sys.stderr.write("fork #1 failed: %d (%s)\n" %
+            (err.errno, err.strerror))
             sys.exit(1)
        
         # decouple from parent environment
@@ -103,19 +100,20 @@ class SmartAgent:
             if pid > 0:
                 # exit from second parent
                 sys.exit(0)
-        except OSError, e:
-            sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
+        except OSError, err:
+            sys.stderr.write("fork #2 failed: %d (%s)\n" %
+            (err.errno, err.strerror))
             sys.exit(1)
        
         # redirect standard file descriptors
         sys.stdout.flush()
         sys.stderr.flush()
-        si = file(self.stdin, 'r')
-        so = file(self.stdout, 'a+')
-        se = file(self.stderr, 'a+', 0)
-        os.dup2(si.fileno(), sys.stdin.fileno())
-        os.dup2(so.fileno(), sys.stdout.fileno())
-        os.dup2(se.fileno(), sys.stderr.fileno())
+        std_i = file(self.stdin, 'r')
+        std_o = file(self.stdout, 'a+')
+        std_e = file(self.stderr, 'a+', 0)
+        os.dup2(std_i.fileno(), sys.stdin.fileno())
+        os.dup2(std_o.fileno(), sys.stdout.fileno())
+        os.dup2(std_e.fileno(), sys.stderr.fileno())
        
         # write pidfile
         atexit.register(self.delpid)
@@ -123,6 +121,7 @@ class SmartAgent:
         file(self.pidfile,'w+').write("%s\n" % pid)
 
     def delpid(self):
+        """Delete the PID file when done"""
         os.remove(self.pidfile)
 
     def start(self):
@@ -130,9 +129,9 @@ class SmartAgent:
 
         # Check for a pidfile to see if the daemon already runs
         try:
-            pf = file(self.pidfile,'r')
-            pid = int(pf.read().strip())
-            pf.close()
+            pid_file = file(self.pidfile,'r')
+            pid = int(pid_file.read().strip())
+            pid_file.close()
         except IOError:
             pid = None
        
@@ -149,9 +148,9 @@ class SmartAgent:
         """ Stop the daemon """
         # Get the pid from the pidfile
         try:
-            pf = file(self.pidfile,'r')
-            pid = int(pf.read().strip())
-            pf.close()
+            pid_file = file(self.pidfile,'r')
+            pid = int(pid_file.read().strip())
+            pid_file.close()
         except IOError:
             pid = None
 
@@ -180,6 +179,7 @@ class SmartAgent:
         self.start()
 
     def run(self):
+        """ Run the smart agent """
         # phone home the initial status to API Server
         state = self.check_status()
         hostname = os.uname()[1]
@@ -191,40 +191,48 @@ class SmartAgent:
             # start consuming rpc messages from API Server
             self.messaging.start_consuming()
         except Exception as err:
-            LOG.error("Failed to connect to MQ due to channel not available: %s", err)
+            LOG.error("Failed to connect to MQ due to channel not \
+            available: %s", err)
             pass
 
     def create_database_instance(self, msg):
+        """ This will call the method that creates a database instance"""
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def delete_database_instance(self, msg):
+        """ This will call the method that deletes a database instance"""
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def create_database(self, msg):
+        """ This calls the method that deletes a database schema"""
         handler = MysqlCommandHandler()
         result = handler.create_database(msg['args']['database'])
         return result
 
     def restart_database(self, msg):
+        """ This restarts MySQL for reading conf changes"""
         result = call("sudo service mysql restart", shell=True)
         return result
 
     def restart_database_instance(self, msg):
+        """ This will call the method that restarts the database instance """
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def reset_password(self, msg):
+        """ This calls the method that changes the user password """ 
         handler = MysqlCommandHandler() # TODO extract into instance variable
         result = handler.reset_user_password(
             self.agent_username, msg['args']['password'])
         return result
 
     def create_user(self, msg):
+        """ This calls the method that creates a given database user """
         handler = command_handler.MysqlCommandHandler()
         result = handler.create_user(
             msg['args']['username'], 
@@ -233,26 +241,31 @@ class SmartAgent:
         return result
 
     def delete_user(self, msg):
+        """ This calls the method that deletes a database user """
         handler = command_handler.MysqlCommandHandler()
         result = handler.delete_user(msg['args']['username'])
         return result
 
     def take_database_snapshot(self, msg):
+        """ This will call the method that creates a database snapshot """
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def list_database_snapshots(self, msg):
+        """ This will call the method that returns database snapshots """
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def delete_database_snapshot(self, msg):
+        """ This will call the method that deletes database snapshot """
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def check_status(self):
+        """ This calls the method to check MySQL's running status """
         result = self.checker.check_if_running(sleep_time_seconds=3,
             number_of_checks=5)
         if result:
@@ -262,6 +275,7 @@ class SmartAgent:
         return result
 
     def get_system_info(self):
+        """ This calls the method to get system OS information """
         LOG.debug('System info')
         hostname = os.uname()[1]
         unumber = os.getuid()
@@ -297,6 +311,8 @@ class SmartAgent:
         # will use this for reset agent password
         # agent_username = 'os_admin'
         
+        # The following is a dispatcher 
+        # TODO: use pythonic solution with dictionary of methods
         # Make sure the method key is part of the JSON - if not, it's
         # invalid.
         # TODO: Return appropriate result/failure values (currently 
