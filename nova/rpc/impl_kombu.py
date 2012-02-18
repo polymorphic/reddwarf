@@ -882,7 +882,7 @@ class PassiveWaiter(object):
             LOG.exception('Invalid string received from message.')
             pass
         # pass the message dictionary to message handler class
-        self._msg_handler.process_message(message)
+        self._msg_handler(message)
 
     def __iter__(self):
         """Keep consuming incoming messages"""

@@ -138,7 +138,6 @@ class API(base.Base):
         reddwarf_dbapi.guest_status_update(instance['internal_id'], int(result))
         return result
 
-
     def reset_password(self, context, id, password='hpcs'):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
         instance = reddwarf_dbapi.instance_from_uuid(id)
@@ -147,8 +146,8 @@ class API(base.Base):
                 {"method": "reset_password",
                  "args": {"password": password}})
 
-
     def create_database_snapshot(self, context, instance_id):
+        LOG.debug("Triggering smart agent to create snapshot on Instance %s.", instance_id)
         return {'result': 'success'}
 
 
@@ -161,7 +160,7 @@ class PhoneHomeMessageHandler():
     def __init__(self):
         self.msg_count = 0
 
-    def process_message(self, msg):
+    def __call__(self, msg):
         """Called by the phone home consumer whenever a message from smart agent is received."""
         self.msg_count += 1
         LOG.debug("Total number of phone home messages processed: %d", self.msg_count)
