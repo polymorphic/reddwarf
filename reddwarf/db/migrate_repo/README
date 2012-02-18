@@ -1,4 +1,92 @@
-This is a database migration repository.
+This is a database migration repository. This containst he files necessary for the
+SQL Alchemy ORM to generate your database tables
 
-More information at
+What to do?
+
+Say for instance you want to create a table "database_snapshots":
+
+CREATE TABLE `database_snapshots` (
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  `deleted` tinyint(1) DEFAULT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `uuid` varchar(36) DEFAULT NULL,
+  `instance_uuid` varchar(36) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `state` int(11) DEFAULT NULL,
+  `user_id` varchar(32) DEFAULT NULL,
+  `project_id` varchar(32) DEFAULT NULL,
+  `storage_uri` varchar(255) DEFAULT NULL,
+  `storage_user_id` varchar(32) DEFAULT NULL,
+  `storage_size` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ix_database_snapshots_uuid` (`uuid`),
+  KEY `ix_database_snapshots_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+
+Just to see what schema version you are at, if you look in the versions directory, the 
+last file is for instance "006_Add_DNS_table.py". 
+
+The first thing you would do is:
+
+python manage.py script "Add snapshot table"
+
+At that point there is a template generated in the versions directory named "007_Add_snapshot_table.py".
+Notice the version number is now 007.
+
+Now edit this file.  (Might want to read up on SQLAlchemy!)
+
+The code in the template will be:
+
+snapshots = Table('database_snapshots', meta,
+               Column('created_at', DateTime(timezone=False)),
+               Column('updated_at', DateTime(timezone=False)),
+               Column('deleted_at', DateTime(timezone=False)),
+               Column('deleted', Boolean(create_constraint=True, name=None)),
+               Column('id', Integer(), primary_key=True),
+               Column('uuid', String(length=36), index=True, unique=True),
+               Column('instance_uuid', String(length=36)),
+               Column('name', String(length=255)),
+               Column('state', Integer()),
+               Column('user_id', String(length=32), index=True, unique=False),
+               Column('project_id', String(length=32)),
+               Column('storage_uri', String(length=255)),
+               Column('storage_user_id', String(length=32)),
+               Column('storage_size', Integer()))
+
+At this point, then you add this content from the generated file into
+reddwarf/reddwarf/db/models.py:
+
+class DbSnapShots(BASE, NovaBase):
+    """Table for recording snapshot info"""
+
+       __tablename__ = 'database_snapshots'
+
+       created_at = Column('created_at', DateTime(timezone=False))
+       updated_at = Column('updated_at', DateTime(timezone=False))
+       deleted_at = Column('deleted_at', DateTime(timezone=False))
+       deleted = Column('deleted', Boolean(create_constraint=True, name=None))
+       id = Column('id', Integer(), primary_key=True)
+       uuid = Column('uuid', String(length=36), index=True, unique=True)
+       instance_uuid = Column('instance_uuid', String(length=36))
+       name = Column('name', String(length=255))
+       state = Column('state', Integer())
+       user_id = Column('user_id', String(length=32), index=True, unique=False)
+       project_id = Column('project_id', String(length=32))
+       storage_uri = Column('storage_uri', String(length=255))
+       storage_user_id = Column('storage_user_id', String(leng 
+
+Also make sure to set the version to match that we are at 007 
+
+Now, copy ./integration/vagrant/conf/nova.conf.template into ./bin/nova.conf. Edit this file
+to reflect your database connection parameters. 
+
+Now run: 
+
+./bin/nova-manage.py db sync
+
+If all goes well, you will have the new table 
+
+More information at (very much recommended)
 http://code.google.com/p/sqlalchemy-migrate/
