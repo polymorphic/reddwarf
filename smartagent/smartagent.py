@@ -23,7 +23,11 @@ It mocks SmartAgent and depends on pika AMQP library but has no dependency
 on any RedDwarf code.
 """
 
-import sys, os, time, atexit, logging
+import sys
+import os
+import time
+import atexit
+import logging
 from signal import SIGTERM 
 from subprocess import call
 
@@ -73,6 +77,7 @@ class SmartAgent:
         self.agent_username = 'os_admin'
         # TODO extract into instance variable
         self.checker = MySqlChecker()  
+        self.handler = MysqlCommandHandler()
 
     def daemonize(self):
         """ This method is for the purpose of the smart agent t
@@ -209,8 +214,7 @@ class SmartAgent:
 
     def create_database(self, msg):
         """ This calls the method that deletes a database schema"""
-        handler = MysqlCommandHandler()
-        result = handler.create_database(msg['args']['database'])
+        result = self.handler.create_database(msg['args']['database'])
         return result
 
     def restart_database(self, msg):

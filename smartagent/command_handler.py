@@ -58,7 +58,10 @@ class MysqlCommandHandler:
         """ sanity check for log folder existence """
         self.backlog_path = '/home/nova/backup_logs'
         if not os.path.exists(self.backlog_path):
-             os.makedirs(self.backlog_path)
+             try:
+                 os.makedirs(self.backlog_path)
+             except OSError, e:
+                 LOG.debug("There was an error creating %s", self.backlog_path)
 
     def create_user(self, username, host='localhost',
                     newpassword=random_string()):
