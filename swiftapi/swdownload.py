@@ -17,7 +17,7 @@ opts = {    'auth' : environ.get('ST_AUTH'),
             'auth_version' : '1.0'}
 
 try:
-    swift.st_download(opts, 'mysql-backup', 'nv-aw2az2-glance0001-Tuesday-backup.tar.gz')
+    swift.st_download(opts, 'mysql-backup', 'testfile')
 
 except (swift.ClientException, HTTPException, socket.error), err:
     print str(err)
