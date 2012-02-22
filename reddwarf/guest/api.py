@@ -128,7 +128,6 @@ class API(base.Base):
         LOG.debug("Sending an upgrade call to nova-guest %s", topic)
         reddwarf_rpc.cast_with_consumer(context, topic, {"method": "upgrade"})
 
-
     def check_mysql_status(self, context, id):
         """Make a synchronous call to trigger smart agent for checking MySQL status"""
         instance = reddwarf_dbapi.instance_from_uuid(id)
@@ -146,13 +145,26 @@ class API(base.Base):
                 {"method": "reset_password",
                  "args": {"password": password}})
 
-    def create_database_snapshot(self, context, instance_id):
-        LOG.debug("Triggering smart agent to create snapshot on Instance %s.", instance_id)
-        return {'result': 'success'}
+    def create_snapshot(self, context, instance_id, snapshot_id, credential):
+        LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
+        instance = reddwarf_dbapi.instance_from_uuid(instance_id)
+        rpc.cast(context, instance['hostname'],
+                 {"method": "create_db_snapshot",
+                  "args": {"sid": snapshot_id,
+                           "credential": {"user": credential.user,
+                                          "password": credential.password,
+                                          "tenant_id": credential.tenant_id}}
+                  })
 
-
-    def restore_database_snapshot(self, context, instance_id, snapshot_id):
-        return {'result': 'success'}
+    def apply_snapshot(self, context, instance_id, snapshot_uri):
+        LOG.debug("Triggering smart agent to apply Snapshot %s on Instance %s.", snapshot_uri, instance_id)
+        instance = reddwarf_dbapi.instance_from_uuid(instance_id)
+        rpc.cast(context, instance['hostname'],
+                 {"method": "apply_db_snapshot",
+                  "args": {"snapshot_uri": snapshot_uri,
+                           "credential": {"user": credential.user,
+                                          "password": credential.password,
+                                          "tenant_id": credential.tenant_id}}})
 
 
 class PhoneHomeMessageHandler():
