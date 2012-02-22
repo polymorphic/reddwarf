@@ -38,6 +38,7 @@ from nova import service
 from nova import utils
 from nova import version
 from nova import wsgi
+from reddwarf.rpc import message_handler
 
 
 LOG = logging.getLogger('reddwarf.api')
@@ -74,7 +75,14 @@ if __name__ == '__main__':
     logging.setup()
     utils.monkey_patch()
     servers = []
+
+    # API service
     loader = wsgi.Loader(config_path=FLAGS.reddwarf_api_paste_config)
     servers.append(service.WSGIService("dbaasapi", loader=loader))
+
+    # Phone home messaging service
+    handler = message_handler.MessageHandlerService()
+    servers.append(handler)
+
     service.serve(*servers)
     service.wait()

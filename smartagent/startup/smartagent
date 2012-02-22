@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 ### BEGIN INIT INFO
-# Provides:          smart_agent 
+# Provides:          smartagent 
 # Required-Start:    $remote_fs $syslog $mysql 
 # Required-Stop:     $remote_fs $syslog $mysql
 # Should-Start:      $network $mysql
@@ -14,31 +14,31 @@
 ### END INIT INFO
 #
 
-SMART_AGENT=/home/nova/reddwarf/smartagent/smart_agent.py
+SMARTAGENT=/home/nova/reddwarf/smartagent/smartagent.py
 
-test -x $SMART_AGENT || exit 0
+test -x $SMARTAGENT || exit 0
 
 . /lib/lsb/init-functions
 
 SELF=$(cd $(dirname $0); pwd -P)/$(basename $0)
 
 do_start () {
-    log_daemon_msg "Starting smart agent"
-	sudo -u nova $SMART_AGENT > /dev/null 2>&1 &
+    log_daemon_msg "Starting the smart agent..."
+	sudo -u nova $SMARTAGENT start > /dev/null 2>&1 &
+    log_daemon_msg "done."
+
 }
 
 do_stop () {
-	smart_agent_pid=`pidof python`
-	if [ -z $smart_agent_pid ]; then 
-        log_failure_msg "The smart agent is not running"
-    else 
-        log_daemon_msg "Stopping smart agent PID ${smart_agent_pid}"
-            kill $smart_agent_pid
-    fi
+    log_daemon_msg "Stopping the smart agent"
+    sudo -u nova $SMARTAGENT stop
+}
+do_restart() {
+    sudo -u nova $SMARTAGENT restart 
 }
 
 do_status () {
-	smart_agent_pid=`pidof python`
+	smart_agent_pid=`cat /home/nova/lock/smartagent.pid`
 	if [ -z $smart_agent_pid ]; then 
         log_failure_msg "The smart agent is not running"
     else 
@@ -59,8 +59,7 @@ case "$1" in
     do_stop
 	;;
   restart)
-    do_stop
-    do_start
+    do_restart
 	;;
   status)
     do_status

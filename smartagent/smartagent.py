@@ -23,12 +23,13 @@ It mocks SmartAgent and depends on pika AMQP library but has no dependency
 on any RedDwarf code.
 """
 
-from subprocess import call
-import json
-
+import sys
 import os
-import logging
 import time
+import atexit
+import logging
+from signal import SIGTERM 
+from subprocess import call
 
 from smartagent_messaging import MessagingService
 from check_mysql_status import MySqlChecker
@@ -37,10 +38,12 @@ from command_handler import MysqlCommandHandler
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)8s %(message)s',
                     filemode='a')
+
+AGENT_HOME = '/home/nova'
 LOG = logging.getLogger()
-fh = logging.FileHandler('/var/log/smartagent.log')
-fh.setLevel(logging.DEBUG)
-LOG.addHandler(fh)
+FH = logging.FileHandler(AGENT_HOME + '/logs/smartagent.log')
+FH.setLevel(logging.DEBUG)
+LOG.addHandler(FH)
 
 # State codes for Reddwarf API
 NOSTATE = 0x00
@@ -60,47 +63,180 @@ class SmartAgent:
     server and take action on a particular RedDwarf instance based on the
     contents of the messages received."""
 
-    def __init__(self, msg_service):
+    def __init__(self, msg_service, 
+                pidfile = AGENT_HOME + '/lock/smartagent.pid'):
+        """ Constructor method """
+        # pylint thought too many arguments. But should keep around.
+        self.pidfile = pidfile
+        self.stdin = '/dev/null' 
+        self.stdout = '/dev/null'
+        self.stderr = '/dev/null'
         self.msg_count = 0
         self.messaging = msg_service
         self.messaging.callback = self.process_message
-        self.agent_username = 'root'
-        self.checker = MySqlChecker()  # TODO extract into instance variable
+        self.agent_username = 'os_admin'
+        # TODO extract into instance variable
+        self.checker = MySqlChecker()  
+        self.handler = MysqlCommandHandler()
+
+    def daemonize(self):
+        """ This method is for the purpose of the smart agent t
+        to run as a daemon and have better control over its running """
+
+        # fork the daemon 
+        try:
+            pid = os.fork()
+            if pid > 0:
+                # exit first parent
+                sys.exit(0)
+        except OSError, err:
+            sys.stderr.write("fork #1 failed: %d (%s)\n" %
+            (err.errno, err.strerror))
+            sys.exit(1)
+       
+        # decouple from parent environment
+        os.chdir(AGENT_HOME)
+        os.setsid()
+        os.umask(0)
+       
+        # do second fork
+        try:
+            pid = os.fork()
+            if pid > 0:
+                # exit from second parent
+                sys.exit(0)
+        except OSError, err:
+            sys.stderr.write("fork #2 failed: %d (%s)\n" %
+            (err.errno, err.strerror))
+            sys.exit(1)
+       
+        # redirect standard file descriptors
+        sys.stdout.flush()
+        sys.stderr.flush()
+        std_i = file(self.stdin, 'r')
+        std_o = file(self.stdout, 'a+')
+        std_e = file(self.stderr, 'a+', 0)
+        os.dup2(std_i.fileno(), sys.stdin.fileno())
+        os.dup2(std_o.fileno(), sys.stdout.fileno())
+        os.dup2(std_e.fileno(), sys.stderr.fileno())
+       
+        # write pidfile
+        atexit.register(self.delpid)
+        pid = str(os.getpid())
+        file(self.pidfile,'w+').write("%s\n" % pid)
+
+    def delpid(self):
+        """Delete the PID file when done"""
+        os.remove(self.pidfile)
 
     def start(self):
-        self.messaging.start_consuming()
+        """ Start the smart agent, daemon process """
+
+        # Check for a pidfile to see if the daemon already runs
+        try:
+            pid_file = file(self.pidfile,'r')
+            pid = int(pid_file.read().strip())
+            pid_file.close()
+        except IOError:
+            pid = None
+       
+        if pid:
+            message = "pidfile %s already exist. Daemon already running?\n"
+            sys.stderr.write(message % self.pidfile)
+            sys.exit(1)
+
+        # Start the daemon
+        self.daemonize()
+        self.run()
+
+    def stop(self):
+        """ Stop the daemon """
+        # Get the pid from the pidfile
+        try:
+            pid_file = file(self.pidfile,'r')
+            pid = int(pid_file.read().strip())
+            pid_file.close()
+        except IOError:
+            pid = None
+
+        if not pid:
+            message = "pidfile %s does not exist. Daemon not running?\n"
+            sys.stderr.write(message % self.pidfile)
+            return # not an error in a restart
+
+        # Try killing the daemon process       
+        try:
+            while 1:
+                os.kill(pid, SIGTERM)
+                time.sleep(0.1)
+        except OSError, err:
+            err = str(err)
+            if err.find("No such process") > 0:
+                if os.path.exists(self.pidfile):
+                    os.remove(self.pidfile)
+                else:
+                    print str(err)
+                    sys.exit(1)
+
+    def restart(self):
+        """ Restart the daemon """
+        self.stop()
+        self.start()
+
+    def run(self):
+        """ Run the smart agent """
+        # phone home the initial status to API Server
+        state = self.check_status()
+        hostname = os.uname()[1]
+        message = {"method": "update_instance_state",
+                   "args": {'hostname': hostname, 'state': str(state)}}
+        try:
+            self.messaging.phone_home(message)
+            LOG.debug('Initial phone home message sent: %s', message)
+            # start consuming rpc messages from API Server
+            self.messaging.start_consuming()
+        except Exception as err:
+            LOG.error("Failed to connect to MQ due to channel not \
+            available: %s", err)
+            pass
 
     def create_database_instance(self, msg):
+        """ This will call the method that creates a database instance"""
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def delete_database_instance(self, msg):
+        """ This will call the method that deletes a database instance"""
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def create_database(self, msg):
-        handler = MysqlCommandHandler()
-        result = handler.create_database(msg['args']['database'])
+        """ This calls the method that deletes a database schema"""
+        result = self.handler.create_database(msg['args']['database'])
         return result
 
     def restart_database(self, msg):
+        """ This restarts MySQL for reading conf changes"""
         result = call("sudo service mysql restart", shell=True)
         return result
 
     def restart_database_instance(self, msg):
+        """ This will call the method that restarts the database instance """
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def reset_password(self, msg):
+        """ This calls the method that changes the user password """ 
         handler = MysqlCommandHandler() # TODO extract into instance variable
         result = handler.reset_user_password(
             self.agent_username, msg['args']['password'])
         return result
 
     def create_user(self, msg):
+        """ This calls the method that creates a given database user """
         handler = command_handler.MysqlCommandHandler()
         result = handler.create_user(
             msg['args']['username'], 
@@ -109,26 +245,31 @@ class SmartAgent:
         return result
 
     def delete_user(self, msg):
+        """ This calls the method that deletes a database user """
         handler = command_handler.MysqlCommandHandler()
         result = handler.delete_user(msg['args']['username'])
         return result
 
     def take_database_snapshot(self, msg):
+        """ This will call the method that creates a database snapshot """
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def list_database_snapshots(self, msg):
+        """ This will call the method that returns database snapshots """
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def delete_database_snapshot(self, msg):
+        """ This will call the method that deletes database snapshot """
         LOG.debug('Functionality not implemented')
         result = None
         return result
 
     def check_status(self):
+        """ This calls the method to check MySQL's running status """
         result = self.checker.check_if_running(sleep_time_seconds=3,
             number_of_checks=5)
         if result:
@@ -138,6 +279,7 @@ class SmartAgent:
         return result
 
     def get_system_info(self):
+        """ This calls the method to get system OS information """
         LOG.debug('System info')
         hostname = os.uname()[1]
         unumber = os.getuid()
@@ -173,6 +315,8 @@ class SmartAgent:
         # will use this for reset agent password
         # agent_username = 'os_admin'
         
+        # The following is a dispatcher 
+        # TODO: use pythonic solution with dictionary of methods
         # Make sure the method key is part of the JSON - if not, it's
         # invalid.
         # TODO: Return appropriate result/failure values (currently 
@@ -223,7 +367,22 @@ def main():
     msg_service = MessagingService()
     
     agent = SmartAgent(msg_service)
-    agent.start()
+    # act according to argument supplied
+    if len(sys.argv) == 2:
+        if 'start' == sys.argv[1]:
+            agent.start()
+        elif 'stop' == sys.argv[1]:
+            agent.stop()
+        elif 'restart' == sys.argv[1]:
+            agent.restart()
+        else:
+            print "unknown command"
+            sys.exit(2)
+        sys.exit(0)
+    else:
+        print "Usage: %s start|stop|restart" % sys.argv[0]
+        sys.exit(2)
+
 
 if __name__ == '__main__':
     main()
