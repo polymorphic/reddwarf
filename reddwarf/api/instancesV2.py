@@ -84,32 +84,26 @@ class ControllerV2(object):
     def index(self, req):
         """ Returns a list of instance names and ids for a given user """
         LOG.info("Call to Instances index")
-        LOG.debug("%s - %s", req.environ, req.body)
 
-
-        # Insert Novaclient
-        from novaclient.v1_1 import client
-        try:
-            nt = client.Client(self, "CHANGEME", "CHANGEME", "CHANGEME", "https://az-2.region-a.geo-1.compute.hpcloudsvc.com/v1.1/")
-            server_list = nt.flavors.list()
-        except:
-            print "AAAAAAAA"
-
-        servers_respose = self.server_controller.index(req)
-        server_list = servers_response['servers']
         context = req.environ['nova.context']
+
+        instance_list = db.api.instance_get_all_by_user(context, context.user_id)
+        
+        #servers_respose = self.server_controller.index(req)
+        #server_list = servers_response['servers']
+        #context = req.environ['nova.context']
 
         # Instances need the status for each instance in all circumstances,
         # unlike servers.
         server_states = db.instance_state_get_all_filtered(context)
-        # for server in server_list:
-        # state = server_states[server['id']]
-        # server['status'] = nova_common.status_from_state(state)
+        for instance in instance_list:
+            state = server_states[instance['id']]
+            instance['status'] = nova_common.status_from_state(state)
 
-        id_list = [server['id'] for server in server_list.list()]
+        id_list = [instance['id'] for instance in instance_list]
         guest_state_mapping = self.get_guest_state_mapping(id_list)
-        instances = [self.view.build_index(server, req, guest_state_mapping)
-                     for server in server_list]
+        instances = [self.view.build_index(instance, req, guest_state_mapping)
+                     for instance in instance_list]
         return {'instances': instances}
 
     def detail(self, req):
@@ -121,32 +115,6 @@ class ControllerV2(object):
         instances = [self.view.build_detail(server, req, guest_state_mapping)
                      for server in server_list]
         return {'instances': instances}
-
-    def xshow(self, req, id):
-        """ Returns instance details by instance id """
-        LOG.info("Get Instance by ID - %s", id)
-        LOG.debug("%s - %s", req.environ, req.body)
-        instance_id = dbapi.localid_from_uuid(id)
-        LOG.debug("Local ID: " + str(instance_id))
-        server_response = self.server_controller.show(req, instance_id)
-        if isinstance(server_response, Exception):
-            return server_response # Just return the exception to throw it
-        context = req.environ['nova.context']
-        server = server_response['server']
-
-        guest_state = self.get_guest_state_mapping([server['id']])
-        databases = None
-        root_enabled = None
-        if guest_state:
-            databases, root_enabled = self._get_guest_info(context, server['id'],
-                guest_state[server['id']])
-        instance = self.view.build_single(server,
-            req,
-            guest_state,
-            databases=databases,
-            root_enabled=root_enabled)
-        LOG.debug("instance - %s" % instance)
-        return {'instance': instance}
 
     def show(self, req, id):
         """ Returns instance details by instance id """
@@ -222,41 +190,6 @@ class ControllerV2(object):
         dbapi.guest_status_delete(instance_id)
         return exc.HTTPAccepted()
 
-    def xcreate(self, req, body):
-        """ Creates a new Instance for a given user """
-        self._validate(body)
-
-        LOG.info("Create Instance")
-        LOG.debug("%s - %s", req.environ, body)
-
-        context = req.environ['nova.context']
-
-        # Create the Volume before hand
-        volume_ref = self.create_volume(context, body)
-        # Setup Security groups
-        self._setup_security_groups(context,
-            FLAGS.default_firewall_rule_name,
-            FLAGS.default_guest_mysql_port)
-
-        server = self._create_server_dict(body['instance'],
-            volume_ref['id'],
-            FLAGS.reddwarf_mysql_data_dir)
-
-        # Add any extra data that's required by the servers api
-        server_req_body = {'server':server}
-        server_resp = self._try_create_server(req, server_req_body)
-        instance_id = str(server_resp['server']['uuid'])
-        local_id = str(server_resp['server']['id'])
-        dbapi.guest_status_create(local_id)
-
-        guest_state = self.get_guest_state_mapping([local_id])
-        instance = self.view.build_single(server_resp['server'], req,
-            guest_state, create=True)
-
-        # add the volume information to response
-        LOG.debug("adding the volume information to the response...")
-        instance['volume'] = {'size': volume_ref['size']}
-        return { 'instance': instance }
 
     def create(self, req, body):
         """ Creates a new Instance for a given user """
@@ -270,7 +203,7 @@ class ControllerV2(object):
         instance_name = body['instance']['name']
 
         # This should be fetched from Flags, image should contain mysqld and agent
-        image_id = '397'
+        image_id = '407'
         flavor_ref = '102'
 
         # Create the Volume before hand
@@ -306,7 +239,7 @@ class ControllerV2(object):
         # Need to assign public IP, but also need to wait for Networking
         self.client.assign_public_ip(local_id)
 
-        dbapi.instance_create(instance_name, server_resp)
+        dbapi.instance_create(context.user_id, context.project_id, instance_name, server_resp)
 
         dbapi.guest_status_create(local_id)
 
