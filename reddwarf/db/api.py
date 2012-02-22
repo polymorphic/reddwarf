@@ -34,6 +34,7 @@ from nova.db.sqlalchemy.models import Volume
 from nova.db.sqlalchemy.session import get_session
 from nova.compute import power_state
 from reddwarf.db import models
+from reddwarf.db.snapshot_state import SnapshotState
 
 FLAGS = flags.FLAGS
 LOG = logging.getLogger('reddwarf.db.api')
@@ -465,3 +466,37 @@ def rsdns_record_list():
         raise exception.RsDnsRecordNotFound(name=name)
     return result
 
+
+def db_snapshot_create(context, values):
+    """
+    Create a new database snapshot entry  
+    """
+    db_snapshot = models.DbSnapShots()
+    db_snapshot.update(values)
+
+    session = get_session()
+    with session.begin():
+        db_snapshot.save(session=session)
+
+def db_snapshot_get(context, uuid):
+    LOG.debug("Fetching Snapshot record with uuid=%s." % uuid)
+    session = get_session()
+    result = session.query(models.DbSnapShots).\
+                         filter_by(uuid=uuid).\
+                         filter_by(deleted=False).\
+                         first()
+    if not result:
+        raise exception.SnapshotNotFound(uuid=uuid)
+    return result
+
+def db_snapshot_delete(context, uuid):
+    LOG.debug("Deleting Snapshot record with uuid=%s." % uuid)
+
+    state = SnapshotState.DELETED
+    session = get_session()
+    with session.begin():
+        session.query(models.DbSnapShots).\
+                filter_by(uuid=uuid).\
+                update({'deleted': True,
+                        'deleted_at': datetime.datetime.utcnow(),
+                        'state': state})

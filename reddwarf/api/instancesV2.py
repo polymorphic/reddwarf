@@ -270,7 +270,7 @@ class ControllerV2(object):
         instance_name = body['instance']['name']
 
         # This should be fetched from Flags, image should contain mysqld and agent
-        image_id = '387'
+        image_id = '397'
         flavor_ref = '102'
 
         # Create the Volume before hand
