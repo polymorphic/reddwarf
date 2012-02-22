@@ -1236,6 +1236,16 @@ def st_download(options, container, obj):
         print 'Object %s not found' % \
             repr('%s/%s' % (container, obj))
 
+def st_create_container(options, container):
+
+    conn = get_conn(options)
+    try:
+        conn.put_container(container)
+    except ClientException, err:
+        if err.http_status != 404:
+            raise
+            print 'unable to create container %s' % container
+
 def st_list(options, args):
 
     conn = get_conn(options)
