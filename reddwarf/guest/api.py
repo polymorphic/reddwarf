@@ -144,6 +144,12 @@ class API(base.Base):
         return rpc.call(context, instance['hostname'],
                 {"method": "reset_password",
                  "args": {"password": password}})
+        
+#    def restart_compute_instance(self, context, id):
+#        """Make a synchronous call to trigger smart agent for rebooting instance"""
+#        instance = reddwarf_dbapi.instance_from_uuid(id)
+#        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
+#        return {'result': 'success'}
 
     def create_snapshot(self, context, instance_id, snapshot_id, credential):
         LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
@@ -218,7 +224,7 @@ class PhoneHomeMessageHandler():
         if not msg['args']['storage_size']:
             raise exception.BadRequest("Required element/key 'storage_size' was not specified in phone home message.")
         # update DB
-        db_snapshot_update(msg['args']['sid'],
-                           int(msg['args']['state']),
-                           msg['args']['storage_uri'],
-                           int(msg['args']['storage_size']))
+        reddwarf_dbapi.db_snapshot_update(msg['args']['sid'],
+                                          msg['args']['state'],
+                                          msg['args']['storage_uri'],
+                                          msg['args']['storage_size'])

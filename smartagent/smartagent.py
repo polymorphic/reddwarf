@@ -30,7 +30,7 @@ import atexit
 import logging
 from signal import SIGTERM 
 from subprocess import call
-
+from result_state import ResultState
 from smartagent_messaging import MessagingService
 from check_mysql_status import MySqlChecker
 from command_handler import MysqlCommandHandler
@@ -44,19 +44,6 @@ LOG = logging.getLogger()
 FH = logging.FileHandler(os.path.join(AGENT_HOME, '/logs/smartagent.log'))
 FH.setLevel(logging.DEBUG)
 LOG.addHandler(FH)
-
-# State codes for Reddwarf API
-NOSTATE = 0x00
-RUNNING = 0x01
-BLOCKED = 0x02
-PAUSED = 0x03
-SHUTDOWN = 0x04
-SHUTOFF = 0x05
-CRASHED = 0x06
-SUSPENDED = 0x07
-FAILED = 0x08
-BUILDING = 0x09
-
 
 class SmartAgent:
     """This class provides an agent able to communicate with a RedDwarf API
@@ -229,8 +216,7 @@ class SmartAgent:
 
     def reset_password(self, msg):
         """ This calls the method that changes the user password """ 
-        handler = MysqlCommandHandler() # TODO extract into instance variable
-        result = handler.reset_user_password(
+        result = self.handler.reset_user_password(
             self.agent_username, msg['args']['password'])
         return result
 
@@ -251,9 +237,8 @@ class SmartAgent:
 
     def take_database_snapshot(self, msg):
         """ This will call the method that creates a database snapshot """
-        LOG.debug('Functionality not implemented')
-        result = None
-        return result
+        result = self.handler.create_db_snapshot(msg['args']['sid'])
+        self.messaging.phone_home(result)
 
     def list_database_snapshots(self, msg):
         """ This will call the method that returns database snapshots """
@@ -271,9 +256,9 @@ class SmartAgent:
         """ This calls the method to check MySQL's running status """
         if self.checker.check_if_running(sleep_time_seconds=3,
             number_of_checks=5):
-            result = RUNNING  # TODO remove dependencies from VM state codes
+            result = ResultState.RUNNING
         else:
-            result = NOSTATE
+            result = ResultState.NOSTATE
         return result
 
     def get_system_info(self):
@@ -342,7 +327,7 @@ class SmartAgent:
             result = self.create_database(msg)
         elif method == 'reset_password':
             result = self.reset_password(msg)
-        elif method == 'take_snapshot':
+        elif method == 'create_snapshot':
             result = self.take_database_snapshot(msg)
         elif method == 'list_snapshots':
             result = self.list_database_snapshots(msg)
@@ -373,6 +358,8 @@ def main():
             agent.stop()
         elif 'restart' == sys.argv[1]:
             agent.restart()
+        elif 'run' == sys.argv[1]:
+            agent.run()
         else:
             print "unknown command"
             sys.exit(2)

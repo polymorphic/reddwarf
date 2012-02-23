@@ -251,6 +251,49 @@ class ControllerV2(object):
         LOG.debug("adding the volume information to the response...")
         #instance['volume'] = {'size': volume_ref['size']}
         return { 'instance': instance }
+    
+    def restart_compute_instance(self, req, instance_id):
+        """Restarts a compute instance"""
+        
+        LOG.info("Restart Compute Instance")
+        LOG.debug("%s - %s", req.environ, req.body)
+        
+        context = req.environ['nova.context']
+        instance_id = dbapi.localid_from_uuid(instance_id)
+
+        # Checking the server state to see if it is running or not
+#        try:
+#            instance = self.compute_api.get(context, instance_id)
+#            if instance['vm_state'] in [vm_states.]:
+#                # Unless the vm_state is currently BUILDING, or is not running at all
+#                # (SHUTDOWN, SHUTOFF), we want to allow reboots.
+#                db.instance_update(context, id, {'vm_state': vm_states.ACTIVE,})
+#
+#            compute_response = self.compute_api.get(context, instance_id)
+#        except nova_exception.NotFound:
+#            raise exception.NotFound()
+#        LOG.debug("server_response - %s", compute_response)
+#        build_states = [
+#            nova_common.vm_states.REBUILDING,
+#            nova_common.vm_states.BUILDING,
+#            ]
+#        if compute_response['vm_state'] in build_states:
+#            # what if guest_state is failed and vm_state is still building
+#            # need to be able to delete instance still
+#            deletable_states = [
+#                power_state.FAILED,
+#                ]
+#            status = dbapi.guest_status_get(instance_id).state
+#            if not status in deletable_states:
+#                LOG.debug("guest status(%s) will not allow delete" % status)
+#                # If the state is building then we throw an exception back
+#                raise exception.UnprocessableEntity("Instance %s is not ready."
+#                % id)
+
+        #self.server_controller.delete(req, instance_id)
+        #TODO(rnirmal): Use a deferred here to update status
+        dbapi.instance_restart(instance_id)
+        return exc.HTTPAccepted()
 
     @staticmethod
     def get_guest_state_mapping(id_list):
