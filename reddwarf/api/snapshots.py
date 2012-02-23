@@ -27,6 +27,7 @@ from reddwarf.api.views import snapshots
 from reddwarf.guest import api as guest_api
 from reddwarf.db import api as dbapi
 from reddwarf.db import snapshot_state
+from reddwarf.client import credential
 
 
 
@@ -92,7 +93,8 @@ class Controller(object):
         # Add record to database
         db_snapshot = dbapi.db_snapshot_create(context, values)
         
-        #self.guest_api.create_snapshot(context, instance_id, uuid, credential)
+        cred = credential.Credential('user','password','tenant')
+        self.guest_api.create_snapshot(context, instance_id, uuid, cred)
         
         snapshot = self.view.build_single(db_snapshot, req)
         #TODO figure out how to send back a 201 along with body
