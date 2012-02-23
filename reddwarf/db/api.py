@@ -500,3 +500,22 @@ def db_snapshot_delete(context, uuid):
                 update({'deleted': True,
                         'deleted_at': datetime.datetime.utcnow(),
                         'state': state})
+
+def db_snapshot_update(uuid, state, storage_uri, storage_size):
+    """Update the snapshot record in the database_snapshots table
+    :param uuid: instance id for the guest
+    :param state: SnapshotState code
+    :param storage_uri: URI in Swift storage
+    :param storage_size: size of the snapshot in storage
+    """
+    LOG.debug("Updating Snapshot record with uuid=%s." % uuid)
+    session = get_session()
+    with session.begin():
+        try:
+            record = session.query(models.DbSnapShots).filter_by(uuid=uuid).one()
+        except NoResultFound:
+            LOG.debug("No such snapshot record found.")
+        record.update({'updated_at': datetime.datetime.utcnow(),
+                       'storage_uri': storage_uri,
+                       'storage_size': storage_size,
+                       'state': state})

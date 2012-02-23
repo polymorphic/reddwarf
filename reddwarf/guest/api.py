@@ -128,7 +128,6 @@ class API(base.Base):
         LOG.debug("Sending an upgrade call to nova-guest %s", topic)
         reddwarf_rpc.cast_with_consumer(context, topic, {"method": "upgrade"})
 
-
     def check_mysql_status(self, context, id):
         """Make a synchronous call to trigger smart agent for checking MySQL status"""
         instance = reddwarf_dbapi.instance_from_uuid(id)
@@ -146,13 +145,26 @@ class API(base.Base):
                 {"method": "reset_password",
                  "args": {"password": password}})
 
-    def create_database_snapshot(self, context, instance_id):
-        LOG.debug("Triggering smart agent to create snapshot on Instance %s.", instance_id)
-        return {'result': 'success'}
+    def create_snapshot(self, context, instance_id, snapshot_id, credential):
+        LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
+        instance = reddwarf_dbapi.instance_from_uuid(instance_id)
+        rpc.cast(context, instance['hostname'],
+                 {"method": "create_db_snapshot",
+                  "args": {"sid": snapshot_id,
+                           "credential": {"user": credential.user,
+                                          "password": credential.password,
+                                          "tenant_id": credential.tenant_id}}
+                  })
 
-
-    def restore_database_snapshot(self, context, instance_id, snapshot_id):
-        return {'result': 'success'}
+    def apply_snapshot(self, context, instance_id, snapshot_uri):
+        LOG.debug("Triggering smart agent to apply Snapshot %s on Instance %s.", snapshot_uri, instance_id)
+        instance = reddwarf_dbapi.instance_from_uuid(instance_id)
+        rpc.cast(context, instance['hostname'],
+                 {"method": "apply_db_snapshot",
+                  "args": {"snapshot_uri": snapshot_uri,
+                           "credential": {"user": credential.user,
+                                          "password": credential.password,
+                                          "tenant_id": credential.tenant_id}}})
 
 
 class PhoneHomeMessageHandler():
@@ -166,13 +178,11 @@ class PhoneHomeMessageHandler():
         LOG.debug("Total number of phone home messages processed: %d", self.msg_count)
         self._validate(msg)
 
-        # dispatch appropriate function based on value of the method key in the message."""
-        method = msg['method']
-        if method == 'update_instance_state':
-            self._update_instance_state(msg)
-        else:
-            LOG.exception("Cannot process undefined phone home method %s", method)
-
+        # execute the requested method from the RPC message
+        func = getattr(self, msg['method'], None)
+        LOG.debug("Dispatching RPC method: %s", msg['method'])
+        if callable(func):
+            func(msg)
 
     def _validate(self, msg):
         """Validate that the request has all the required parameters"""
@@ -182,16 +192,33 @@ class PhoneHomeMessageHandler():
             raise exception.BadRequest("Required element/key 'method' was not specified in phone home message.")
         if not msg['args']:
             raise exception.BadRequest("Required element/key 'args' was not specified in phone home message.")
-        else:
-            if not msg['args']['hostname']:
-                raise exception.BadRequest("Required element/key 'hostname' was not specified in phone home message.")
-            if not msg['args']['state']:
-                raise exception.BadRequest("Required element/key 'state' was not specified in phone home message.")
 
-
-    def _update_instance_state(self, msg):
+    def update_instance_state(self, msg):
         """Update instance state in guest_status table."""
+        # validate input message
+        if not msg['args']['hostname']:
+            raise exception.BadRequest("Required element/key 'hostname' was not specified in phone home message.")
+        if not msg['args']['state']:
+            raise exception.BadRequest("Required element/key 'state' was not specified in phone home message.")
+        # update DB
         instance = reddwarf_dbapi.instance_from_hostname(msg['args']['hostname'])
         state = int(msg['args']['state'])
         LOG.debug("Updating mysql instance state for Instance %s", instance['uuid'])
         reddwarf_dbapi.guest_status_update(instance['internal_id'], state)
+
+    def update_snapshot_state(self, msg):
+        """Update snapshot state in database_snapshots table."""
+        # validate input message
+        if not msg['args']['sid']:
+            raise exception.BadRequest("Required element/key 'sid' was not specified in phone home message.")
+        if not msg['args']['state']:
+            raise exception.BadRequest("Required element/key 'state' was not specified in phone home message.")
+        if not msg['args']['storage_uri']:
+            raise exception.BadRequest("Required element/key 'storage_uri' was not specified in phone home message.")
+        if not msg['args']['storage_size']:
+            raise exception.BadRequest("Required element/key 'storage_size' was not specified in phone home message.")
+        # update DB
+        db_snapshot_update(msg['args']['sid'],
+                           int(msg['args']['state']),
+                           msg['args']['storage_uri'],
+                           int(msg['args']['storage_size']))
