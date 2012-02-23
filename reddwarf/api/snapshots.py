@@ -18,11 +18,17 @@ from nova import compute
 from nova import log as logging
 from nova.api.openstack import wsgi
 from nova.notifier import api as notifier
+from nova import utils
 
 from reddwarf import exception
 from reddwarf.api import common
 from reddwarf.api import deserializer
+from reddwarf.api.views import snapshots
 from reddwarf.guest import api as guest_api
+from reddwarf.db import api as dbapi
+from reddwarf.db import snapshot_state
+
+
 
 LOG = logging.getLogger('reddwarf.api.snapshots')
 LOG.setLevel(logging.DEBUG)
@@ -34,33 +40,63 @@ class Controller(object):
     def __init__(self):
         self.guest_api = guest_api.API()
         self.compute_api = compute.API()
+        self.view = snapshots.ViewBuilder()
         super(Controller, self).__init__()
 
-    def show(self, req, instance_id, id):
+    def show(self, req, id):
         """ Returns a requested snapshot """
         LOG.info("Get snapshot %s" % id)
         LOG.debug("%s - %s", req.environ, req.body)
         context = req.environ['nova.context']
+        
+        db_snapshot = dbapi.db_snapshot_get(context, id)
+        snapshot = self.view.build_single(db_snapshot, req)
 
-    def index(self, req, instance_id):
+        return { 'snapshot' : snapshot }
+    
+    def index(self, req):
         """ Returns a list of Snapshots for the Instance """
-        LOG.info("Get snapshots for instance %s", instance_id)
+        LOG.info("Get snapshots for snapshot id %s")
         LOG.debug("%s - %s", req.environ, req.body)
         context = req.environ['nova.context']
 
-    def delete(self, req, instance_id, id):
+    def delete(self, req, id):
         """ Deletes a Snapshot """
-        LOG.info("Delete snapshot %s for instance %s", id, instance_id)
+        LOG.info("Delete snapshot with id %s", id)
         LOG.debug("%s - %s", req.environ, req.body)
         context = req.environ['nova.context']
         return exc.HTTPAccepted()
 
-    def create(self, req, instance_id, body):
+    def create(self, req, body):
         """ Creates a Snapshot """
         self._validate(body)
+        instance_id = body['snapshot']['instanceId']
+        name = body['snapshot']['name']
         LOG.info("Create Snapshot for instance %s", instance_id)
         LOG.debug("%s - %s", req.environ, req.body)
-        return exc.HTTPCreated()
+        
+        context = req.environ['nova.context']
+
+        # Generate UUID for Snapshot
+        uuid = str(utils.gen_uuid())
+        
+        values = {
+            'uuid' : uuid,
+            'instance_uuid' : instance_id,
+            'name' : name,
+            'state' : snapshot_state.SnapshotState.INPROGRESS,
+            'user_id' : context.user_id,
+            'project_id' : context.project_id
+            }
+        
+        # Add record to database
+        db_snapshot = dbapi.db_snapshot_create(context, values)
+        
+        #self.guest_api.create_snapshot(context, instance_id, uuid, credential)
+        
+        snapshot = self.view.build_single(db_snapshot, req)
+        #TODO figure out how to send back a 201 along with body
+        return { 'snapshot' : snapshot }
 
     def _validate(self, body):
         """Validate that the request has all the required parameters"""
@@ -75,7 +111,7 @@ def create_resource(version='1.0'):
 
     metadata = {
         "attributes": {
-            "snapshot": ["id", "status", "availabilityZone", "createdTime", "instanceId",
+            "snapshot": ["id", "state", "availabilityZone", "createdTime", "instanceId",
                       "engine", "engineVersion"],
             "link": ["rel", "href"],
             },
