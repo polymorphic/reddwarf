@@ -218,7 +218,7 @@ class PhoneHomeMessageHandler():
         if not msg['args']['storage_size']:
             raise exception.BadRequest("Required element/key 'storage_size' was not specified in phone home message.")
         # update DB
-        db_snapshot_update(msg['args']['sid'],
-                           int(msg['args']['state']),
-                           msg['args']['storage_uri'],
-                           int(msg['args']['storage_size']))
+        reddwarf_dbapi.db_snapshot_update(msg['args']['sid'],
+                                          msg['args']['state'],
+                                          msg['args']['storage_uri'],
+                                          msg['args']['storage_size'])

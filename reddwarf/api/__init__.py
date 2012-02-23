@@ -183,6 +183,10 @@ class APIRouter(wsgi.Router):
             controller=demo.create_resource(),
             action="check_mysql_status", conditions=dict(method=["GET"]))
 
+        mapper.connect("/{project_id}/instances/{instance_id}/snapshot",
+            controller=demo.create_resource(),
+            action="create_snapshot", conditions=dict(method=["POST"]))
+
         mapper.connect("/", controller=versions.create_resource(),
                        action="dispatch")
 

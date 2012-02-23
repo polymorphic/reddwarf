@@ -36,10 +36,10 @@ class Controller(object):
 
 
     def cast_smart_agent(self, req, instance_id):
-        LOG.info("Call to demo asynchronous call to smart agent on instance %s", instance_id)
+        LOG.info("Demo asynchronous call to Smart Agent on instance %s", instance_id)
         ctxt = context.get_admin_context()
         try:
-            result = self.guest_api.cast_smart_agent(ctxt, instance_id)
+            self.guest_api.cast_smart_agent(ctxt, instance_id)
             return exc.HTTPAccepted()
         except Exception as err:
             LOG.error(err)
@@ -47,7 +47,7 @@ class Controller(object):
 
 
     def check_mysql_status(self, req, instance_id):
-        LOG.info("Call to Smart Agent to check MySQL status on Instance %s", instance_id)
+        LOG.info("Demo call to Smart Agent to check MySQL status on Instance %s", instance_id)
         ctxt = context.get_admin_context()
         try:
             result = self.guest_api.check_mysql_status(ctxt, instance_id)
@@ -58,7 +58,7 @@ class Controller(object):
 
 
     def reset_password(self, req, instance_id):
-        LOG.info("Call to Smart Agent to reset MySQL password on Instance %s", instance_id)
+        LOG.info("Demo call to Smart Agent to reset MySQL password on Instance %s", instance_id)
         ctxt = context.get_admin_context()
         try:
             result = self.guest_api.reset_password(ctxt, instance_id)
@@ -66,6 +66,26 @@ class Controller(object):
         except Exception as err:
             LOG.error(err)
             raise exception.InstanceFault("Error triggering remote smart agent")
+
+    def create_snapshot(self, req, instance_id):
+        LOG.info("Demo call to Smart Agent to create snapshot on Instance %s", instance_id)
+        ctxt = context.get_admin_context()
+        # dummy snapshot ID and credential for demo
+        sid = "1234"
+        credential = Credential("joe", "ab1234", "999")
+        try:
+            self.guest_api.create_snapshot(ctxt, instance_id, sid, credential)
+            return exc.HTTPAccepted()
+        except Exception as err:
+            LOG.error(err)
+            raise exception.InstanceFault("Error triggering remote smart agent")
+
+
+class Credential:
+    def __init__(self, user, password, tenant_id):
+        self.user = user
+        self.password = password
+        self.tenant_id = tenant_id
 
 
 def create_resource(version='1.0'):
