@@ -473,10 +473,15 @@ def db_snapshot_create(context, values):
     """
     db_snapshot = models.DbSnapShots()
     db_snapshot.update(values)
+    
+    db_snapshot.created_at = utils.utcnow()
+    db_snapshot.deleted = False
 
     session = get_session()
     with session.begin():
         db_snapshot.save(session=session)
+    
+    return db_snapshot
 
 def db_snapshot_get(context, uuid):
     LOG.debug("Fetching Snapshot record with uuid=%s." % uuid)
@@ -486,7 +491,7 @@ def db_snapshot_get(context, uuid):
                          filter_by(deleted=False).\
                          first()
     if not result:
-        raise exception.SnapshotNotFound(uuid=uuid)
+        raise exception.SnapshotNotFound(snapshot_id=uuid)
     return result
 
 def db_snapshot_delete(context, uuid):

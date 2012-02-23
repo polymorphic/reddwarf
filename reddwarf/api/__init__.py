@@ -33,6 +33,7 @@ from reddwarf.api import instancesV2
 from reddwarf.api import guests
 from reddwarf.api import hosts
 from reddwarf.api import management
+from reddwarf.api import snapshots
 from reddwarf.api import root
 from reddwarf.api import storage
 from reddwarf.api import users
@@ -150,6 +151,9 @@ class APIRouter(wsgi.Router):
                         controller=instancesV2.create_resource(),
                         collection={'detail': 'GET'},
                         member=instance_members)
+
+        mapper.resource("snapshot", "snapshots",
+                        controller=snapshots.create_resource())
 
         mapper.resource("flavor", "flavors",
                         controller=flavors.create_resource(),
