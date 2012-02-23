@@ -20,6 +20,7 @@ from nova import compute
 from reddwarf import exception
 from reddwarf.api import common
 from reddwarf.guest import api as guest_api
+from reddwarf.client import credential
 from webob import exc
 
 
@@ -72,20 +73,13 @@ class Controller(object):
         ctxt = context.get_admin_context()
         # dummy snapshot ID and credential for demo
         sid = "1234"
-        credential = Credential("joe", "ab1234", "999")
+        cred = credential.Credential("joe", "ab1234", "999")
         try:
-            self.guest_api.create_snapshot(ctxt, instance_id, sid, credential)
+            self.guest_api.create_snapshot(ctxt, instance_id, sid, cred)
             return exc.HTTPAccepted()
         except Exception as err:
             LOG.error(err)
             raise exception.InstanceFault("Error triggering remote smart agent")
-
-
-class Credential:
-    def __init__(self, user, password, tenant_id):
-        self.user = user
-        self.password = password
-        self.tenant_id = tenant_id
 
 
 def create_resource(version='1.0'):

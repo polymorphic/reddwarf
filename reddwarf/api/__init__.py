@@ -179,15 +179,15 @@ class APIRouter(wsgi.Router):
                        action="is_root_enabled", conditions=dict(method=["GET"]))
 
         ## demo for e2e API-MQ-Agent
-        mapper.connect("/{project_id}/instances/{instance_id}/smartagent",
+        mapper.connect("/{project_id}/instances/{instance_id}/smartagent_demo",
                        controller=demo.create_resource(),
                        action="reset_password", conditions=dict(method=["POST"]))
 
-        mapper.connect("/{project_id}/instances/{instance_id}/smartagent",
+        mapper.connect("/{project_id}/instances/{instance_id}/smartagent_demo",
             controller=demo.create_resource(),
             action="check_mysql_status", conditions=dict(method=["GET"]))
 
-        mapper.connect("/{project_id}/instances/{instance_id}/snapshot",
+        mapper.connect("/{project_id}/instances/{instance_id}/snapshot_demo",
             controller=demo.create_resource(),
             action="create_snapshot", conditions=dict(method=["POST"]))
 
