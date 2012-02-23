@@ -64,6 +64,13 @@ class MysqlCommandHandler:
                  os.makedirs(self.backlog_path)
              except OSError, e:
                  LOG.debug("There was an error creating %s", self.backlog_path)
+                 
+    def get_response_body(self, path_specifier, result, snapshot_size):
+        return {"method": "update_snapshot_state", 
+                "args": {"sid": path_specifier, 
+                         "state": result, 
+                         "storage_uri": "temp_hard_coded", 
+                         "storage_size": snapshot_size }}
 
     def create_user(self, username, host='localhost',
                     newpassword=random_string()):
@@ -235,14 +242,6 @@ class MysqlCommandHandler:
         return snapshot_size
     
     
-    def get_response_body(self, path_specifier, result, snapshot_size):
-        return {"method": "update_snapshot_state", 
-                "args": {"sid": path_specifier, 
-                         "state": result, 
-                         "storage_uri": "temp_hard_coded", 
-                         "storage_size": snapshot_size }}
-   
-        
     def keyword_checker(self, keyword_to_check, log_path):
         try: 
             f = open(log_path, "r")
