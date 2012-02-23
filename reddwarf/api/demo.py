@@ -67,7 +67,7 @@ class Controller(object):
             LOG.error(err)
             raise exception.InstanceFault("Error triggering remote smart agent")
 
-
+    
 def create_resource(version='1.0'):
     controller = {
         '1.0': Controller,

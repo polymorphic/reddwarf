@@ -145,6 +145,12 @@ class API(base.Base):
         return rpc.call(context, instance['hostname'],
                 {"method": "reset_password",
                  "args": {"password": password}})
+        
+#    def restart_compute_instance(self, context, id):
+#        """Make a synchronous call to trigger smart agent for rebooting instance"""
+#        instance = reddwarf_dbapi.instance_from_uuid(id)
+#        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
+#        return {'result': 'success'}
 
     def create_database_snapshot(self, context, instance_id):
         LOG.debug("Triggering smart agent to create snapshot on Instance %s.", instance_id)
