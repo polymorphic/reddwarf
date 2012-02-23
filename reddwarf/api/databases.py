@@ -14,7 +14,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
+import string
 from webob import exc
 
 from nova import compute
@@ -66,28 +66,21 @@ class Controller(object):
 
     def delete(self, req, instance_id, id):
         """ Deletes a Database """
-        
         LOG.info("Call to Delete Database - %s for instance %s",
                  id, instance_id)
-        LOG.debug("%s - %s", req.environ, id)
+        LOG.debug("%s - %s", req.environ, req.body)
         local_id = dbapi.localid_from_uuid(instance_id)
         ctxt = req.environ['nova.context']
-        #common.instance_available(ctxt, instance_id, local_id, self.compute_api)
-        
-        LOG.debug("databases = %s", id)
+        common.instance_available(ctxt, instance_id, local_id, self.compute_api)
         try:
-            #mydb = models.MySQLDatabase()
-            #mydb.name = id
+            mydb = models.MySQLDatabase()
+            mydb.name = id
             result = self.guest_api.delete_database(ctxt, local_id, id)
-        #except ValueError as ve:
-        except Exception as err:
-            LOG.error(err)
-            raise exception.InstanceFault("Requested database does not" + \
-                "exist on the specified instance")
-            #LOG.error(ve)
-            #raise exception.BadRequest(ve.message)
-        LOG.debug("DELETE DATABASE RETURN - %s", result)
-        #self.guest_api.delete_database(ctxt, local_id, mydb.serialize())
+        except ValueError as ve:
+            LOG.error(ve)
+            raise exception.BadRequest(ve.message)
+        
+        self.guest_api.delete_database(ctxt, local_id, mydb.serialize())
         return exc.HTTPAccepted()
 
     def create(self, req, instance_id, body):
