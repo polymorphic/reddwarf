@@ -30,7 +30,7 @@ import atexit
 import logging
 from signal import SIGTERM 
 from subprocess import call
-
+from result_state import ResultState
 from smartagent_messaging import MessagingService
 from check_mysql_status import MySqlChecker
 from command_handler import MysqlCommandHandler
@@ -41,30 +41,18 @@ logging.basicConfig(level=logging.DEBUG,
 
 AGENT_HOME = '/home/nova'
 LOG = logging.getLogger()
-FH = logging.FileHandler(AGENT_HOME + '/logs/smartagent.log')
+FH = logging.FileHandler(os.path.join(AGENT_HOME, '/logs/smartagent.log'))
 FH.setLevel(logging.DEBUG)
 LOG.addHandler(FH)
-
-# State codes for Reddwarf API
-NOSTATE = 0x00
-RUNNING = 0x01
-BLOCKED = 0x02
-PAUSED = 0x03
-SHUTDOWN = 0x04
-SHUTOFF = 0x05
-CRASHED = 0x06
-SUSPENDED = 0x07
-FAILED = 0x08
-BUILDING = 0x09
-
 
 class SmartAgent:
     """This class provides an agent able to communicate with a RedDwarf API
     server and take action on a particular RedDwarf instance based on the
     contents of the messages received."""
 
-    def __init__(self, msg_service, 
-                pidfile = AGENT_HOME + '/lock/smartagent.pid'):
+    def __init__(self,
+                 msg_service,
+                 pidfile=os.path.join(AGENT_HOME, '/lock/smartagent.pid')):
         """ Constructor method """
         # pylint thought too many arguments. But should keep around.
         self.pidfile = pidfile
@@ -80,19 +68,19 @@ class SmartAgent:
         self.handler = MysqlCommandHandler()
 
     def daemonize(self):
-        """ This method is for the purpose of the smart agent t
+        """ This method is for the purpose of the smart agent
         to run as a daemon and have better control over its running """
 
         # fork the daemon 
         try:
             pid = os.fork()
             if pid > 0:
-                # exit first parent
-                sys.exit(0)
+                LOG.debug("Exiting first parent")
+                sys.exit(os.EX_OK)
         except OSError, err:
             sys.stderr.write("fork #1 failed: %d (%s)\n" %
             (err.errno, err.strerror))
-            sys.exit(1)
+            sys.exit(os.EX_OSERR)
        
         # decouple from parent environment
         os.chdir(AGENT_HOME)
@@ -103,12 +91,12 @@ class SmartAgent:
         try:
             pid = os.fork()
             if pid > 0:
-                # exit from second parent
-                sys.exit(0)
+                LOG.debug("Exiting second parent")
+                sys.exit(os.EX_OK)  # should this be _exit() ?
         except OSError, err:
             sys.stderr.write("fork #2 failed: %d (%s)\n" %
             (err.errno, err.strerror))
-            sys.exit(1)
+            sys.exit(os.EX_OSERR)
        
         # redirect standard file descriptors
         sys.stdout.flush()
@@ -121,11 +109,13 @@ class SmartAgent:
         os.dup2(std_e.fileno(), sys.stderr.fileno())
        
         # write pidfile
-        atexit.register(self.delpid)
+        atexit.register(self.remove_pid_file)
         pid = str(os.getpid())
-        file(self.pidfile,'w+').write("%s\n" % pid)
+        LOG.debug("pid: %s", pid)
+        with open(self.pidfile,'w+') as f:
+            f.write("%s\n" % pid)
 
-    def delpid(self):
+    def remove_pid_file(self):
         """Delete the PID file when done"""
         os.remove(self.pidfile)
 
@@ -133,17 +123,11 @@ class SmartAgent:
         """ Start the smart agent, daemon process """
 
         # Check for a pidfile to see if the daemon already runs
-        try:
-            pid_file = file(self.pidfile,'r')
-            pid = int(pid_file.read().strip())
-            pid_file.close()
-        except IOError:
-            pid = None
-       
-        if pid:
-            message = "pidfile %s already exist. Daemon already running?\n"
-            sys.stderr.write(message % self.pidfile)
-            sys.exit(1)
+        LOG.debug('Checking for %s', self.pidfile)
+        if os.path.isfile(self.pidfile):
+            # TODO: also check that the process is running
+            sys.stderr.write("Daemon already running?\n" % self.pidfile)
+            sys.exit(os.EX_USAGE)
 
         # Start the daemon
         self.daemonize()
@@ -151,18 +135,20 @@ class SmartAgent:
 
     def stop(self):
         """ Stop the daemon """
+        LOG.debug('Checking for %s', self.pidfile)
+        if not os.path.isfile(self.pidfile):
+            sys.stderr.write("Daemon not running?\n" % self.pidfile)
+            sys.exit(os.EX_OK)
         # Get the pid from the pidfile
+        with open(self.pidfile,'r') as f:
+            pid_string = f.read().strip()
         try:
-            pid_file = file(self.pidfile,'r')
-            pid = int(pid_file.read().strip())
-            pid_file.close()
-        except IOError:
+            pid = int(pid_string)
+        except ValueError:
             pid = None
-
         if not pid:
-            message = "pidfile %s does not exist. Daemon not running?\n"
-            sys.stderr.write(message % self.pidfile)
-            return # not an error in a restart
+            sys.stderr.write("Can't parse PID form pidfile %s\n" % self.pidfile)
+            sys.exit(os.EX_OSFILE)
 
         # Try killing the daemon process       
         try:
@@ -176,7 +162,7 @@ class SmartAgent:
                     os.remove(self.pidfile)
                 else:
                     print str(err)
-                    sys.exit(1)
+                    sys.exit(os.EX_UNAVAILABLE)
 
     def restart(self):
         """ Restart the daemon """
@@ -230,8 +216,7 @@ class SmartAgent:
 
     def reset_password(self, msg):
         """ This calls the method that changes the user password """ 
-        handler = MysqlCommandHandler() # TODO extract into instance variable
-        result = handler.reset_user_password(
+        result = self.handler.reset_user_password(
             self.agent_username, msg['args']['password'])
         return result
 
@@ -252,9 +237,8 @@ class SmartAgent:
 
     def take_database_snapshot(self, msg):
         """ This will call the method that creates a database snapshot """
-        LOG.debug('Functionality not implemented')
-        result = None
-        return result
+        result = self.handler.create_db_snapshot(msg['args']['sid'])
+        self.messaging.phone_home(result)
 
     def list_database_snapshots(self, msg):
         """ This will call the method that returns database snapshots """
@@ -270,12 +254,11 @@ class SmartAgent:
 
     def check_status(self):
         """ This calls the method to check MySQL's running status """
-        result = self.checker.check_if_running(sleep_time_seconds=3,
-            number_of_checks=5)
-        if result:
-            result = RUNNING  # TODO remove dependencies from VM state codes
+        if self.checker.check_if_running(sleep_time_seconds=3,
+            number_of_checks=5):
+            result = ResultState.RUNNING
         else:
-            result = NOSTATE
+            result = ResultState.NOSTATE
         return result
 
     def get_system_info(self):
@@ -344,7 +327,7 @@ class SmartAgent:
             result = self.create_database(msg)
         elif method == 'reset_password':
             result = self.reset_password(msg)
-        elif method == 'take_snapshot':
+        elif method == 'create_snapshot':
             result = self.take_database_snapshot(msg)
         elif method == 'list_snapshots':
             result = self.list_database_snapshots(msg)
@@ -375,6 +358,8 @@ def main():
             agent.stop()
         elif 'restart' == sys.argv[1]:
             agent.restart()
+        elif 'run' == sys.argv[1]:
+            agent.run()
         else:
             print "unknown command"
             sys.exit(2)

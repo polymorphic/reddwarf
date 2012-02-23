@@ -24,8 +24,8 @@ import logging
 import random
 from result_state import ResultState
 import os
-from multiprocessing import Process
 import time
+import subprocess
 
 logging.basicConfig()
 
@@ -56,7 +56,9 @@ class MysqlCommandHandler:
         self.persistence_agent.open_connection()
         
         """ sanity check for log folder existence """
-        self.backlog_path = '/home/nova/backup_logs'
+        self.backlog_path = '/home/nova/backup_logs/'
+        self.backup_path = '/var/lib/mysql-backup/'
+        
         if not os.path.exists(self.backlog_path):
              try:
                  os.makedirs(self.backlog_path)
@@ -224,6 +226,23 @@ class MysqlCommandHandler:
             LOG.error("Drop database failed")
         return result
 
+    def get_snapshot_size(self, path):
+        snapshot_size = 0
+        for (path, dirs, files) in os.walk(path):
+            for file in files:
+                filename = os.path.join(path, file)
+                snapshot_size += os.path.getsize(filename)
+        return snapshot_size
+    
+    
+    def get_response_body(self, path_specifier, result, snapshot_size):
+        return {"method": "update_snapshot_state", 
+                "args": {"sid": path_specifier, 
+                         "state": result, 
+                         "storage_uri": "temp_hard_coded", 
+                         "storage_size": snapshot_size }}
+   
+        
     def keyword_checker(self, keyword_to_check, log_path):
         try: 
             f = open(log_path, "r")
@@ -239,66 +258,63 @@ class MysqlCommandHandler:
         except:
             LOG.error("log file does not exist")
             
-    def backup_process_checker(self, process_id, keyword_to_check, file_path):
-        """ background process checking if innobackupex is still running and 
-            if the backup snapshot has been created successfully at the end """
-                    
-        while os.path.exists("/proc/%s" % process_id):
-            LOG.debug('innobackupex is still running')
-            time.sleep(5)
-        
-        """ check the last line of innobackupex log to see its status """
-        self.keyword_checker(keyword_to_check, file_path)
-    
-           
-    def create_db_snapshot(self, path='/var/lib/mysql-backup/', path_specifier='uuid'):
-        
-        path += path_specifier
-        log_path = self.backlog_path + '/' + path_specifier + '_' + 'innobackupex_create.log'
-        innobackup_cmd = "innobackupex --no-timestamp %s > %s 2>&1" % (path, log_path)
-        keyword = "innobackupex: completed OK!"
-        
-        inno_process = Process(target=os.system, args=(innobackup_cmd,))
-        inno_process.start()
-        LOG.debug('innobackupex backup process started')
-        
-        """ start background process for checker """
-        checker_process = Process(target=self.backup_process_checker, args=(inno_process.pid, keyword, log_path))
-        checker_process.start()
-        LOG.debug('checker process started')
-        
-    def prepare_db_snapshot(self, path='/var/lib/mysql-backup/', path_specifier='uuid'):
-        path += path_specifier
-        log_home = self.backlog_path + '/' + path_specifier + '_'
-        log_path = log_home + 'innobackupex_create.log'
-        
-        snapshot_is_ready = 'innobackupex: completed OK!'
-        
-        """ sanity check if the backup snapshot is ready to prepare """
-        result = self.keyword_checker(snapshot_is_ready, log_path)
-
-        if result == 'SUCCESS':
             
-            log_path = log_home + 'innobackupex_prepare.log'
-            innobackup_cmd = "innobackupex --use-memory=1G --apply-log %s > %s 2>&1" % (path, log_path)
-            keyword = "innobackupex: completed OK!"
+    def check_process(self, proc):
+        status = proc.poll()
+        while status !=0:
+            if status == None:
+                LOG.debug('subprocess is still alive')
+                time.sleep(5)
+                status = proc.poll()
+            else:
+                LOG.error('subprocess encounter errors, exit code: %s' % status)
+                return 'error'
+        return 'normal'
+    
+    def create_db_snapshot(self, path_specifier):
+        path = self.backup_path + path_specifier
+        log_home = self.backlog_path + path_specifier + '_'
+        keyword_to_check = "innobackupex: completed OK!"
         
-            inno_process = Process(target=os.system, args=(innobackup_cmd,))
-            inno_process.start()
-            LOG.debug('innobackupex prepare process started')
+        result = None
+        """ create backup snapshot first """
         
-            """ start background process for checker """
-            checker_process = Process(target=self.backup_process_checker, args=(inno_process.pid, keyword, log_path))
-            checker_process.start()
-        else:
-            LOG.error("snapshot is not ready for preparation") 
+        log_path = log_home + 'innobackupex_create.log'
+        inno_backup_cmd = "innobackupex --no-timestamp %s > %s 2>&1" % (path, log_path)
+
+        proc = subprocess.Popen(inno_backup_cmd, shell=True)
+        if self.check_process(proc) == 'error':
+            LOG.error('create snapshot failed somehow')
+            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+        
+        result = self.keyword_checker(keyword_to_check, log_path) 
+        if result != ResultState.SUCCESS:
+            LOG.error('snapshot is not ready for preparation')
+            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+
+        """ prepare the snapshot for uploading to swift """
+        
+        log_path = log_home + 'innobackupex_prepare.log'
+            
+        inno_prepare_cmd = "innobackupex --use-memory=1G --apply-log %s > %s 2>&1" % (path, log_path)
+            
+        proc_ = subprocess.Popen(inno_prepare_cmd, shell=True)
+        if self.check_process(proc_) == 'error':
+            LOG.error('preparation failed somehow')
+            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+        
+        response_body = self.get_response_body(path_specifier, 
+                        self.keyword_checker(keyword_to_check, log_path), 
+                        self.get_snapshot_size(path))
+        LOG.debug(response_body)
+        return response_body
+            
         
 def main():
     """ main program """
     handler = MysqlCommandHandler()
-    handler.reset_user_password('root', 'hpcs')
-    handler.create_db_snapshot(path='/var/lib/mysql-backup/', path_specifier='uuid')
-    #handler.prepare_db_snapshot(path='/var/lib/mysql-backup/', path_specifier='uuid')
-    
+#    handler.reset_user_password('root', 'hpcs')
+    handler.create_db_snapshot(path_specifier='uuid2')
+
 if __name__ == '__main__':
     main()

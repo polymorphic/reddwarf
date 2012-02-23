@@ -17,9 +17,9 @@
 # under the License.
 
 
-class ResultState:
-    """States of operation result""" 
-    NOSTATE = 0x00 # 000
-    RUNNING = 0x01 # 001
-    SUCCESS = 0x02 # 010
-    FAILED = 0x03  # 100
+class SnapshotState:
+    """States of snapshots"""
+    INPROGRESS = 1
+    COMPLETED = 2
+    FAILED = 3
+    DELETED = 4
