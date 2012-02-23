@@ -30,7 +30,7 @@ import atexit
 import logging
 from signal import SIGTERM 
 from subprocess import call
-
+from result_state import ResultState
 from smartagent_messaging import MessagingService
 from check_mysql_status import MySqlChecker
 from command_handler import MysqlCommandHandler
@@ -46,16 +46,16 @@ FH.setLevel(logging.DEBUG)
 LOG.addHandler(FH)
 
 # State codes for Reddwarf API
-NOSTATE = 0x00
-RUNNING = 0x01
-BLOCKED = 0x02
-PAUSED = 0x03
-SHUTDOWN = 0x04
-SHUTOFF = 0x05
-CRASHED = 0x06
-SUSPENDED = 0x07
-FAILED = 0x08
-BUILDING = 0x09
+#NOSTATE = 0x00
+#RUNNING = 0x01
+#BLOCKED = 0x02
+#PAUSED = 0x03
+#SHUTDOWN = 0x04
+#SHUTOFF = 0x05
+#CRASHED = 0x06
+#SUSPENDED = 0x07
+#FAILED = 0x08
+#BUILDING = 0x09
 
 
 class SmartAgent:
@@ -229,8 +229,7 @@ class SmartAgent:
 
     def reset_password(self, msg):
         """ This calls the method that changes the user password """ 
-        handler = MysqlCommandHandler() # TODO extract into instance variable
-        result = handler.reset_user_password(
+        result = self.handler.reset_user_password(
             self.agent_username, msg['args']['password'])
         return result
 
@@ -251,9 +250,8 @@ class SmartAgent:
 
     def take_database_snapshot(self, msg):
         """ This will call the method that creates a database snapshot """
-        LOG.debug('Functionality not implemented')
-        result = None
-        return result
+        result = self.handler.create_db_snapshot(msg['args']['sid'])
+        self.messaging.phone_home(result)
 
     def list_database_snapshots(self, msg):
         """ This will call the method that returns database snapshots """

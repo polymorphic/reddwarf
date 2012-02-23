@@ -56,7 +56,7 @@ class MysqlCommandHandler:
         self.persistence_agent.open_connection()
         
         """ sanity check for log folder existence """
-        self.backlog_path = '/home/nova/backup_logs'
+        self.backlog_path = '/home/nova/backup_logs/'
         self.backup_path = '/var/lib/mysql-backup/'
         
         if not os.path.exists(self.backlog_path):
@@ -226,6 +226,23 @@ class MysqlCommandHandler:
             LOG.error("Drop database failed")
         return result
 
+    def get_snapshot_size(self, path):
+        snapshot_size = 0
+        for (path, dirs, files) in os.walk(path):
+            for file in files:
+                filename = os.path.join(path, file)
+                snapshot_size += os.path.getsize(filename)
+        return snapshot_size
+    
+    
+    def get_response_body(self, path_specifier, result, snapshot_size):
+        return {"method": "update_snapshot_state", 
+                "args": {"sid": path_specifier, 
+                         "state": result, 
+                         "storage_uri": "temp_hard_coded", 
+                         "storage_size": snapshot_size }}
+   
+        
     def keyword_checker(self, keyword_to_check, log_path):
         try: 
             f = open(log_path, "r")
@@ -241,45 +258,56 @@ class MysqlCommandHandler:
         except:
             LOG.error("log file does not exist")
             
+            
+    def check_process(self, proc):
+        status = proc.poll()
+        while status !=0:
+            if status == None:
+                LOG.debug('subprocess is still alive')
+                time.sleep(5)
+                status = proc.poll()
+            else:
+                LOG.error('subprocess encounter errors, exit code: %s' % status)
+                return 'error'
+        return 'normal'
     
     def create_db_snapshot(self, path_specifier):
         path = self.backup_path + path_specifier
-        log_home = self.backlog_path + '/' + path_specifier + '_'
+        log_home = self.backlog_path + path_specifier + '_'
         keyword_to_check = "innobackupex: completed OK!"
         
-        
+        result = None
         """ create backup snapshot first """
         
         log_path = log_home + 'innobackupex_create.log'
         inno_backup_cmd = "innobackupex --no-timestamp %s > %s 2>&1" % (path, log_path)
 
         proc = subprocess.Popen(inno_backup_cmd, shell=True)
-        while proc.poll() != 0:
-            time.sleep(5)
-            LOG.debug('subprocess for backup is still alive')
-        LOG.debug('create backup subprocess is ended')
-        
-        #elf.test(innobackup_cmd)
+        if self.check_process(proc) == 'error':
+            LOG.error('create snapshot failed somehow')
+            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
         
         result = self.keyword_checker(keyword_to_check, log_path) 
-        if result == 'SUCCESS':
-
-            """ prepare the snapshot for uploading to swift """
-        
-            log_path = log_home + 'innobackupex_prepare.log'
-            
-            inno_prepare_cmd = "innobackupex --use-memory=1G --apply-log %s > %s 2>&1" % (path, log_path)
-            
-            proc_ = subprocess.Popen(inno_prepare_cmd, shell=True)
-            while proc_.poll() != 0:
-                time.sleep(5)
-                LOG.debug('subprocess for prepare is still alive')
-            LOG.debug('preparation is ended')
-        
-            return self.keyword_checker(keyword_to_check, log_path) 
-        
-        else:
+        if result != ResultState.SUCCESS:
             LOG.error('snapshot is not ready for preparation')
+            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+
+        """ prepare the snapshot for uploading to swift """
+        
+        log_path = log_home + 'innobackupex_prepare.log'
+            
+        inno_prepare_cmd = "innobackupex --use-memory=1G --apply-log %s > %s 2>&1" % (path, log_path)
+            
+        proc_ = subprocess.Popen(inno_prepare_cmd, shell=True)
+        if self.check_process(proc_) == 'error':
+            LOG.error('preparation failed somehow')
+            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+        
+        response_body = self.get_response_body(path_specifier, 
+                        self.keyword_checker(keyword_to_check, log_path), 
+                        self.get_snapshot_size(path))
+        LOG.debug(response_body)
+        return response_body
             
         
 def main():
