@@ -342,7 +342,7 @@ class SmartAgent:
             result = self.create_database(msg)
         elif method == 'reset_password':
             result = self.reset_password(msg)
-        elif method == 'take_snapshot':
+        elif method == 'create_snapshot':
             result = self.take_database_snapshot(msg)
         elif method == 'list_snapshots':
             result = self.list_database_snapshots(msg)
@@ -373,6 +373,8 @@ def main():
             agent.stop()
         elif 'restart' == sys.argv[1]:
             agent.restart()
+        elif 'run' == sys.argv[1]:
+            agent.run()
         else:
             print "unknown command"
             sys.exit(2)
