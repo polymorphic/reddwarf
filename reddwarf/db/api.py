@@ -473,10 +473,15 @@ def db_snapshot_create(context, values):
     """
     db_snapshot = models.DbSnapShots()
     db_snapshot.update(values)
+    
+    db_snapshot.created_at = utils.utcnow()
+    db_snapshot.deleted = False
 
     session = get_session()
     with session.begin():
         db_snapshot.save(session=session)
+    
+    return db_snapshot
 
 def db_snapshot_get(context, uuid):
     LOG.debug("Fetching Snapshot record with uuid=%s." % uuid)
@@ -486,7 +491,7 @@ def db_snapshot_get(context, uuid):
                          filter_by(deleted=False).\
                          first()
     if not result:
-        raise exception.SnapshotNotFound(uuid=uuid)
+        raise exception.SnapshotNotFound(snapshot_id=uuid)
     return result
 
 def db_snapshot_delete(context, uuid):
@@ -500,3 +505,22 @@ def db_snapshot_delete(context, uuid):
                 update({'deleted': True,
                         'deleted_at': datetime.datetime.utcnow(),
                         'state': state})
+
+def db_snapshot_update(uuid, state, storage_uri, storage_size):
+    """Update the snapshot record in the database_snapshots table
+    :param uuid: instance id for the guest
+    :param state: SnapshotState code
+    :param storage_uri: URI in Swift storage
+    :param storage_size: size of the snapshot in storage
+    """
+    LOG.debug("Updating Snapshot record with uuid=%s." % uuid)
+    session = get_session()
+    with session.begin():
+        try:
+            record = session.query(models.DbSnapShots).filter_by(uuid=uuid).one()
+        except NoResultFound:
+            LOG.debug("No such snapshot record found.")
+        record.update({'updated_at': datetime.datetime.utcnow(),
+                       'storage_uri': storage_uri,
+                       'storage_size': storage_size,
+                       'state': state})

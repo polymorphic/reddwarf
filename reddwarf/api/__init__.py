@@ -33,6 +33,7 @@ from reddwarf.api import instancesV2
 from reddwarf.api import guests
 from reddwarf.api import hosts
 from reddwarf.api import management
+from reddwarf.api import snapshots
 from reddwarf.api import root
 from reddwarf.api import storage
 from reddwarf.api import users
@@ -151,6 +152,9 @@ class APIRouter(wsgi.Router):
                         collection={'detail': 'GET'},
                         member=instance_members)
 
+        mapper.resource("snapshot", "snapshots",
+                        controller=snapshots.create_resource())
+
         mapper.resource("flavor", "flavors",
                         controller=flavors.create_resource(),
                         collection={'detail': 'GET'})
@@ -175,13 +179,17 @@ class APIRouter(wsgi.Router):
                        action="is_root_enabled", conditions=dict(method=["GET"]))
 
         ## demo for e2e API-MQ-Agent
-        mapper.connect("/{project_id}/instances/{instance_id}/smartagent",
+        mapper.connect("/{project_id}/instances/{instance_id}/smartagent_demo",
                        controller=demo.create_resource(),
                        action="reset_password", conditions=dict(method=["POST"]))
 
-        mapper.connect("/{project_id}/instances/{instance_id}/smartagent",
+        mapper.connect("/{project_id}/instances/{instance_id}/smartagent_demo",
             controller=demo.create_resource(),
             action="check_mysql_status", conditions=dict(method=["GET"]))
+
+        mapper.connect("/{project_id}/instances/{instance_id}/snapshot_demo",
+            controller=demo.create_resource(),
+            action="create_snapshot", conditions=dict(method=["POST"]))
 
         mapper.connect("/", controller=versions.create_resource(),
                        action="dispatch")

@@ -1727,9 +1727,7 @@ def st_upload(options, args, print_queue, error_queue):
                         thread.start()
                     segment = 0
                     segment_start = 0
-                    print "while segment_start < full_size"
                     while segment_start < full_size:
-                        print "segment_start %d" % segment_start
                         segment_size = int(options.segment_size)
                         if segment_start + segment_size > full_size:
                             segment_size = full_size - segment_start
@@ -1761,12 +1759,11 @@ def st_upload(options, args, print_queue, error_queue):
                     conn.put_object(container, obj, '', content_length=0,
                                     headers=put_headers)
                 else:
-                    print "else container %s conn.put_object" % container
-                    print "obj"
-                    print obj
+                    print "put_object(%s, %s, open(%s, 'rb'), content_length=%d, headers=%s)" % (container, obj, path, getsize(path), put_headers) 
                     conn.put_object(container, obj, open(path, 'rb'),
                         content_length=getsize(path), headers=put_headers)
                 if old_manifest:
+                    print "old_manifest"
                     segment_queue = Queue(10000)
                     scontainer, sprefix = old_manifest.split('/', 1)
                     for delobj in conn.get_container(scontainer,
@@ -1809,6 +1806,7 @@ def st_upload(options, args, print_queue, error_queue):
                 else:
                     object_queue.put({'path': subpath})
 
+    print "create_connection"
     create_connection = lambda: get_conn(options)
     object_threads = [QueueFunctionThread(object_queue, _object_job,
         create_connection()) for _junk in xrange(10)]
@@ -1820,6 +1818,7 @@ def st_upload(options, args, print_queue, error_queue):
     # permissions, so we'll ignore any error. If there's really a problem,
     # it'll surface on the first object PUT.
     try:
+        print "create container %s" % args[0]
         conn.put_container(args[0])
         if options.segment_size is not None:
             conn.put_container(args[0] + '_segments')
@@ -1830,6 +1829,7 @@ def st_upload(options, args, print_queue, error_queue):
             if isdir(arg):
                 _upload_dir(arg)
             else:
+                print "object_queue put {path : %s" %  arg
                 object_queue.put({'path': arg})
         while not object_queue.empty():
             sleep(0.01)

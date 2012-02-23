@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import swift
-from os import environ, listdir, makedirs, utime
+from os import environ
 import socket
 
 try:
