@@ -52,6 +52,9 @@ class OSClient(object):
         #server.id = id
         return self.client.servers.get(id)
     
+    def flavors(self):
+        return self.client.flavors.findall()
+    
     def assign_public_ip(self,id):
         LOG.debug("Assigning public IP to instance %s" % id)
         
