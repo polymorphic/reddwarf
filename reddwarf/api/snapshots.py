@@ -14,7 +14,6 @@
 
 from webob import exc
 
-from nova import compute
 from nova import log as logging
 from nova.api.openstack import wsgi
 from nova.notifier import api as notifier
@@ -29,8 +28,6 @@ from reddwarf.db import api as dbapi
 from reddwarf.db import snapshot_state
 from reddwarf.client import credential
 
-
-
 LOG = logging.getLogger('reddwarf.api.snapshots')
 LOG.setLevel(logging.DEBUG)
 
@@ -39,8 +36,7 @@ def publisher_id(host=None):
 
 class Controller(object):
     def __init__(self):
-        self.guest_api = guest_api.API()
-        self.compute_api = compute.API()
+        self.guestapi = guest_api.API()
         self.view = snapshots.ViewBuilder()
         super(Controller, self).__init__()
 
@@ -52,7 +48,6 @@ class Controller(object):
         
         db_snapshot = dbapi.db_snapshot_get(context, id)
         snapshot = self.view.build_single(db_snapshot, req)
-
         return { 'snapshot' : snapshot }
     
     def index(self, req):
@@ -66,7 +61,10 @@ class Controller(object):
         LOG.info("Delete snapshot with id %s", id)
         LOG.debug("%s - %s", req.environ, req.body)
         context = req.environ['nova.context']
-        return exc.HTTPAccepted()
+        # db_snapshot = dbapi.db_snapshot_get(context, id)
+        # swift client delete(db_snapshot.storage_uri)
+        dbapi.db_snapshot_delete(context, id)
+        return exc.HTTPOk()
 
     def create(self, req, body):
         """ Creates a Snapshot """
@@ -92,19 +90,22 @@ class Controller(object):
         
         # Add record to database
         db_snapshot = dbapi.db_snapshot_create(context, values)
-        
-        cred = credential.Credential('user','password','tenant')
-        self.guest_api.create_snapshot(context, instance_id, uuid, cred)
-        
+        cred = credential.Credential('user', 'password', 'tenant')
+        self.guestapi.create_snapshot(context, instance_id, uuid, cred)
         snapshot = self.view.build_single(db_snapshot, req)
-        #TODO figure out how to send back a 201 along with body
         return exc.HTTPCreated({ 'snapshot' : snapshot })
 
     def _validate(self, body):
         """Validate that the request has all the required parameters"""
         if not body:
             raise exception.BadRequest("The request contains an empty body")
-
+        try:
+            body['snapshot']
+            body['snapshot']['instanceId']
+            body['snapshot']['name']
+        except KeyError as e:
+            LOG.error("Create Snapshot Required field(s) - %s" % e)
+            raise exception.BadRequest("Required element/key - %s was not specified" % e)        
 
 def create_resource(version='1.0'):
     controller = {
