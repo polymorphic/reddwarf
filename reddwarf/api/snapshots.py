@@ -27,6 +27,7 @@ from reddwarf.guest import api as guest_api
 from reddwarf.db import api as dbapi
 from reddwarf.db import snapshot_state
 from reddwarf.client import credential
+from swiftapi import swift
 
 LOG = logging.getLogger('reddwarf.api.snapshots')
 LOG.setLevel(logging.DEBUG)
@@ -69,7 +70,27 @@ class Controller(object):
         LOG.info("Delete snapshot with id %s", id)
         LOG.debug("%s - %s", req.environ, req.body)
         context = req.environ['nova.context']
-        # db_snapshot = dbapi.db_snapshot_get(context, id)
+        db_snapshot = dbapi.db_snapshot_get(context, id)
+        
+        uri = db_snapshot.storage_uri
+        container, file = uri.split('/',2)
+        
+        LOG.debug("Deleting from Container: %s - File: %s", container, file)
+        
+        ST_AUTH="https://region-a.geo-1.identity.hpcloudsvc.com:35357/auth/v1.0"
+        ST_CONTAINER="mysql-backup"
+        ST_USER="21343820976858:dbas@hp.com"
+        ST_KEY="Dbas-312"
+
+        opts = {'auth' : ST_AUTH,
+            'user' : ST_USER,
+            'key' : ST_KEY,
+            'snet' : False,
+            'prefix' : '',
+            'auth_version' : '1.0'}
+        
+        swift.st_delete(opts, container, file)
+        
         # swift client delete(db_snapshot.storage_uri)
         dbapi.db_snapshot_delete(context, id)
         return exc.HTTPOk()
