@@ -78,14 +78,7 @@ class MysqlCommandHandler:
                  os.makedirs(self.backlog_path)
              except OSError, e:
                  LOG.debug("There was an error creating %s", self.backlog_path)
-                 
-    # TODO: Anna, container needed to be passed vs. hard-coded
-    def get_response_body(self, container, path_specifier, result, snapshot_size):
-        return {"method": "update_snapshot_state", 
-                "args": {"sid": path_specifier, 
-                         "state": result, 
-                         "storage_uri": container, 
-                         "storage_size": snapshot_size }}
+
 
     def create_user(self, username, host='localhost',
                     newpassword=random_string()):
@@ -258,16 +251,22 @@ class MysqlCommandHandler:
 #                filename = os.path.join(path, file)
 #                snapshot_size += os.path.getsize(filename)
 #        return snapshot_size
+            
     
+    def get_response_body(self, path_specifier, result, snapshot_size):
+        temp = 'mysql-backup' + '/' + path_specifier + '.tar.gz'
+        return {"method": "update_snapshot_state", 
+                "args": {"sid": path_specifier, 
+                         "state": result, 
+                         "storage_uri": temp, 
+                         "storage_size": snapshot_size }}
     def get_tar_file(self, path, tar_name):
         try:
-            print "tar name is %s.tar.gz" % tar_name
             target_name = tar_name + '.tar.gz'
             tar = tarfile.open(target_name, 'w:gz')
             tar.add(path)
             tar.close()
-            # TODO: no hard code, please use config
-            target = '/var/lib/mysql-backup/' + target_name
+            target = '/root/' + target_name
 #            print os.path.exists(target)
 #            print tarfile.is_tarfile(target_name)
             
@@ -315,7 +314,7 @@ class MysqlCommandHandler:
         return 'normal'
     
     # TODO: container MUST come from API! Change this.
-    def create_db_snapshot(self, container, path_specifier):
+    def create_db_snapshot(self, path_specifier):
         path = self.backup_path + path_specifier
         log_home = self.backlog_path + path_specifier + '_'
         keyword_to_check = "innobackupex: completed OK!"
@@ -330,12 +329,12 @@ class MysqlCommandHandler:
 
         if self.check_process(proc) == 'error':
             LOG.error('create snapshot failed somehow')
-            return self.get_response_body(container, path_specifier, ResultState.FAILED, 0)
+            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
         
         result = self.keyword_checker(keyword_to_check, log_path) 
         if result != ResultState.SUCCESS:
             LOG.error('snapshot is not ready for preparation')
-            return self.get_response_body(container, path_specifier, ResultState.FAILED, 0)
+            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
 
         """ prepare the snapshot for uploading to swift """
         
@@ -346,14 +345,13 @@ class MysqlCommandHandler:
         proc_ = subprocess.Popen(inno_prepare_cmd, shell=True)
         if self.check_process(proc_) == 'error':
             LOG.error('preparation failed somehow')
-            return self.get_response_body(container, path_specifier, ResultState.FAILED, 0)
+            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
         
         """ tar the entire backup folder """
         tar_result = self.get_tar_file(path, path_specifier)
         print tar_result
         if tar_result == ResultState.FAILED:
-            return self.get_response_body(container, path_specifier, 
-                ResultState.FAILED, self.get_snapshot_size(path))
+            return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
         
         """ start upload to swift """
         opts = {'auth' : environ.get('ST_AUTH'),
@@ -362,31 +360,14 @@ class MysqlCommandHandler:
             'snet' : False,
             'prefix' : '',
             'auth_version' : '1.0'}
-
         try:
-            cont = swift.st_get_container(opts, container)
-        except (swift.ClientException, HTTPException, socket.error), err:
-            LOG.error(str(err))
-            return self.get_response_body(container, path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
-
-        if len(cont) == 0:
-            try:
-                # create container
-                swift.st_create_container(opts, container)
-            except (swift.ClientException, HTTPException, socket.error), err:
-                LOG.error(str(err))
-                return self.get_response_body(container, path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
-
-        try:
-            # TODO: container must come from the call to this method from the agent via API
-            # TODO: container MUST use 'msyql-backup-' + tenant_id (from API talk to Vipul)
-            swift.st_upload(opts, container, tar_result)  
+            swift.st_upload(opts, 'mysql-backup', tar_result)  
         except(ClientException, HTTPException, socket.error), err:
             LOG.error(str(err))
-            return self.get_response_body(container, path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
-        
-        response_body = self.get_response_body(container, path_specifier, 
-                        self.keyword_checker(keyword_to_check, log_path), 
+            return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
+         
+        response_body = self.get_response_body(path_specifier, 
+                        ResultState.SUCCESS, 
                         self.get_snapshot_size(tar_result))
         LOG.debug(response_body)
         
