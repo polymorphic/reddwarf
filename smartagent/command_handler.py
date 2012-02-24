@@ -258,8 +258,23 @@ class MysqlCommandHandler:
             tar = tarfile.open(target_name, 'w:gz')
             tar.add(path)
             tar.close()
+            target = '/root/' + target_name
+#            print os.path.exists(target)
+#            print tarfile.is_tarfile(target_name)
+            
+            return target_name
+        
+            
+#            target = '/root/' + target_name
+#            
+#            if not os.path.exists(target):
+#                raise
+#            if not tarfile.is_tarfile(target_name):
+#                raise
+#            else:
+#                return target_name
         except:
-            LOG.error('tar file failed somehow')
+            LOG.error('tar/compress snapshot failed somehow')
             return ResultState.FAILED
         
     def keyword_checker(self, keyword_to_check, log_path):
@@ -325,11 +340,11 @@ class MysqlCommandHandler:
         
         """ tar the entire backup folder """
         tar_result = self.get_tar_file(path, path_specifier)
+        print tar_result
         if tar_result == ResultState.FAILED:
             return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
         
         """ start upload to swift """
-        
         opts = {'auth' : environ.get('ST_AUTH'),
             'user' : environ.get('ST_USER'),
             'key' : environ.get('ST_KEY'),
@@ -338,16 +353,23 @@ class MysqlCommandHandler:
             'auth_version' : '1.0'}
         try:
             swift.st_upload(opts, 'mysql-backup', tar_result)  
-        except(swift.ClientException, HTTPException, socket.error), err:
+        except(ClientException, HTTPException, socket.error), err:
             LOG.error(str(err))
             return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
-            
+        
+        """ remove .tar.gz file after upload """
+        try:
+            os.remove(tar_result)
+        except:
+            print tar_result
+            print 'remove .tar.gz does not work'
+            pass
+         
         response_body = self.get_response_body(path_specifier, 
                         self.keyword_checker(keyword_to_check, log_path), 
                         self.get_snapshot_size(path))
         LOG.debug(response_body)
         return response_body
-            
         
 def main():
     """ main program """
