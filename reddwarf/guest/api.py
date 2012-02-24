@@ -87,10 +87,11 @@ class API(base.Base):
            within the specified container"""
         LOG.debug("Deleting database %s for Instance %s",
                   database, id)
-        rpc.cast(context, self._get_routing_key(context, id),
-                 {"method": "delete_database",
-                  "args": {"database": database}
-                 })
+        return None
+#        return rpc.call(context, self._get_routing_key(context, id),
+#                 {"method": "delete_instance",
+#                  "args": {"database": database}
+#                 })
 
     def enable_root(self, context, id):
         """Make a synchronous call to enable the root user for
@@ -144,6 +145,12 @@ class API(base.Base):
         return rpc.call(context, instance['hostname'],
                 {"method": "reset_password",
                  "args": {"password": password}})
+        
+#    def restart_compute_instance(self, context, id):
+#        """Make a synchronous call to trigger smart agent for rebooting instance"""
+#        instance = reddwarf_dbapi.instance_from_uuid(id)
+#        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
+#        return {'result': 'success'}
 
     def create_snapshot(self, context, instance_id, snapshot_id, credential):
         LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
