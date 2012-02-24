@@ -98,7 +98,7 @@ class Controller(object):
         
         snapshot = self.view.build_single(db_snapshot, req)
         #TODO figure out how to send back a 201 along with body
-        return { 'snapshot' : snapshot }
+        return exc.HTTPCreated({ 'snapshot' : snapshot })
 
     def _validate(self, body):
         """Validate that the request has all the required parameters"""
