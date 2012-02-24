@@ -516,11 +516,36 @@ def db_snapshot_update(uuid, state, storage_uri, storage_size):
     LOG.debug("Updating Snapshot record with uuid=%s." % uuid)
     session = get_session()
     with session.begin():
-        try:
-            record = session.query(models.DbSnapShots).filter_by(uuid=uuid).one()
-        except NoResultFound:
-            LOG.debug("No such snapshot record found.")
+        record = session.query(models.DbSnapShots).filter_by(uuid=uuid).one()
+        if not record:
+            raise exception.SnapshotNotFound(snapshot_id=uuid)
         record.update({'updated_at': datetime.datetime.utcnow(),
                        'storage_uri': storage_uri,
                        'storage_size': storage_size,
                        'state': state})
+        
+def db_snapshot_list_by_user(context, user_id):
+    """
+    Fetches all db_snapshots for a given user
+    """
+    LOG.debug("Fetching all Snapshots for a User.")
+    session = get_session()
+    if not session:
+        session = get_session()
+    result = session.query(models.DbSnapShots).filter_by(user_id=user_id)
+    if not result:
+        raise exception.SnapshotNotFound(snapshot_id="All snapshots for User")
+    return result
+
+def db_snapshot_list_by_user_and_instance(context, user_id, instance_id):
+    """
+    Fetches all db_snapshots for a given instance
+    """
+    LOG.debug("Fetching all Snapshots for a User.")
+    session = get_session()
+    if not session:
+        session = get_session()
+    result = session.query(models.DbSnapShots).filter_by(user_id=user_id).filter_by(instance_id)
+    if not result:
+        raise exception.SnapshotNotFound(snapshot_id="All snapshots for instance")
+    return result

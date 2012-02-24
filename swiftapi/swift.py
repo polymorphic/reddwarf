@@ -24,7 +24,6 @@ from sys import argv, exc_info, exit, stderr, stdout
 from threading import enumerate as threading_enumerate, Thread
 from time import sleep
 from traceback import format_exception
-import ClientException
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -76,6 +75,51 @@ except ImportError:
     from json import loads as json_loads
     from json import dumps as json_dumps
 
+class ClientException(Exception):
+
+    def __init__(self, msg, http_scheme='', http_host='', http_port='',
+                 http_path='', http_query='', http_status=0, http_reason='',
+                 http_device=''):
+        Exception.__init__(self, msg)
+        self.msg = msg
+        self.http_scheme = http_scheme
+        self.http_host = http_host
+        self.http_port = http_port
+        self.http_path = http_path
+        self.http_query = http_query
+        self.http_status = http_status
+        self.http_reason = http_reason
+        self.http_device = http_device
+
+    def __str__(self):
+        a = self.msg
+        b = ''
+        if self.http_scheme:
+            b += '%s://' % self.http_scheme
+        if self.http_host:
+            b += self.http_host
+        if self.http_port:
+            b += ':%s' % self.http_port
+        if self.http_path:
+            b += self.http_path
+        if self.http_query:
+            b += '?%s' % self.http_query
+        if self.http_status:
+            if b:
+                b = '%s %s' % (b, self.http_status)
+            else:
+                b = str(self.http_status)
+        if self.http_reason:
+            if b:
+                b = '%s %s' % (b, self.http_reason)
+            else:
+                b = '- %s' % self.http_reason
+        if self.http_device:
+            if b:
+                b = '%s: device %s' % (b, self.http_device)
+            else:
+                b = 'device %s' % self.http_device
+        return b and '%s: %s' % (a, b) or a
 
 
 
@@ -969,162 +1013,44 @@ class QueueFunctionThread(Thread):
             self.exc_infos.append(exc_info())
 
 
-def st_delete(parser, args, print_queue, error_queue):
-    parser.add_option('-a', '--all', action='store_true', dest='yes_all',
-        default=False, help='Indicates that you really want to delete '
-        'everything in the account')
-    parser.add_option('', '--leave-segments', action='store_true',
-        dest='leave_segments', default=False, help='Indicates that you want '
-        'the segments of manifest objects left alone')
-    (options, args) = parse_args(parser, args)
-    args = args[1:]
-    if (not args and not options.yes_all) or (args and options.yes_all):
-        error_queue.put('Usage: %s [options] %s' %
-                        (basename(argv[0]), st_delete_help))
-        return
+def st_get_container(options, container):
+    conn = get_conn(options)
+    objects = {}
+    try:
+        objects = conn.get_container(container, marker='');
+    except ClientException, err:
+        if err.http_status != 404:
+            raise
+            print 'Container %s not found' % (container)
 
-    def _delete_segment((container, obj), conn):
+    return objects
+
+def st_delete(options, container, obj):
+    """ delete an object in a given container """
+    # TODO: add better arg, error handling
+    conn = get_conn(options)
+    try:
         conn.delete_object(container, obj)
-        if options.verbose:
-            if conn.attempts > 2:
-                print_queue.put('%s/%s [after %d attempts]' %
-                                (container, obj, conn.attempts))
-            else:
-                print_queue.put('%s/%s' % (container, obj))
+    except ClientException, err:
+        if err.http_status != 404:
+            raise
+            print "Object %s not found" % repr('%s/%s' % (container, obj))
 
-    object_queue = Queue(10000)
 
-    def _delete_object((container, obj), conn):
-        try:
-            old_manifest = None
-            if not options.leave_segments:
-                try:
-                    old_manifest = conn.head_object(container, obj).get(
-                        'x-object-manifest')
-                except ClientException, err:
-                    if err.http_status != 404:
-                        raise
-            conn.delete_object(container, obj)
-            if old_manifest:
-                segment_queue = Queue(10000)
-                scontainer, sprefix = old_manifest.split('/', 1)
-                for delobj in conn.get_container(scontainer,
-                                                 prefix=sprefix)[1]:
-                    segment_queue.put((scontainer, delobj['name']))
-                if not segment_queue.empty():
-                    segment_threads = [QueueFunctionThread(segment_queue,
-                        _delete_segment, create_connection()) for _junk in
-                        xrange(10)]
-                    for thread in segment_threads:
-                        thread.start()
-                    while not segment_queue.empty():
-                        sleep(0.01)
-                    for thread in segment_threads:
-                        thread.abort = True
-                        while thread.isAlive():
-                            thread.join(0.01)
-                    put_errors_from_threads(segment_threads, error_queue)
-            if options.verbose:
-                path = options.yes_all and join(container, obj) or obj
-                if path[:1] in ('/', '\\'):
-                    path = path[1:]
-                if conn.attempts > 1:
-                    print_queue.put('%s [after %d attempts]' %
-                                    (path, conn.attempts))
-                else:
-                    print_queue.put(path)
-        except ClientException, err:
-            if err.http_status != 404:
-                raise
-            error_queue.put('Object %s not found' %
-                            repr('%s/%s' % (container, obj)))
-
-    container_queue = Queue(10000)
-
-    def _delete_container(container, conn):
-        try:
-            marker = ''
-            while True:
-                objects = [o['name'] for o in
-                           conn.get_container(container, marker=marker)[1]]
-                if not objects:
-                    break
-                for obj in objects:
-                    object_queue.put((container, obj))
-                marker = objects[-1]
-            while not object_queue.empty():
-                sleep(0.01)
-            attempts = 1
-            while True:
-                try:
-                    conn.delete_container(container)
-                    break
-                except ClientException, err:
-                    if err.http_status != 409:
-                        raise
-                    if attempts > 10:
-                        raise
-                    attempts += 1
-                    sleep(1)
-        except ClientException, err:
-            if err.http_status != 404:
-                raise
-            error_queue.put('Container %s not found' % repr(container))
-
-    create_connection = lambda: get_conn(options)
-    object_threads = [QueueFunctionThread(object_queue, _delete_object,
-        create_connection()) for _junk in xrange(10)]
-    for thread in object_threads:
-        thread.start()
-    container_threads = [QueueFunctionThread(container_queue,
-        _delete_container, create_connection()) for _junk in xrange(10)]
-    for thread in container_threads:
-        thread.start()
-    if not args:
-        conn = create_connection()
-        try:
-            marker = ''
-            while True:
-                containers = \
-                    [c['name'] for c in conn.get_account(marker=marker)[1]]
-                if not containers:
-                    break
-                for container in containers:
-                    container_queue.put(container)
-                marker = containers[-1]
-            while not container_queue.empty():
-                sleep(0.01)
-            while not object_queue.empty():
-                sleep(0.01)
-        except ClientException, err:
-            if err.http_status != 404:
-                raise
-            error_queue.put('Account not found')
-    elif len(args) == 1:
-        if '/' in args[0]:
-            print >> stderr, 'WARNING: / in container name; you might have ' \
-                             'meant %r instead of %r.' % \
-                             (args[0].replace('/', ' ', 1), args[0])
-        conn = create_connection()
-        _delete_container(args[0], conn)
-    else:
-        for obj in args[1:]:
-            object_queue.put((args[0], obj))
-    while not container_queue.empty():
-        sleep(0.01)
-    for thread in container_threads:
-        thread.abort = True
-        while thread.isAlive():
-            thread.join(0.01)
-    put_errors_from_threads(container_threads, error_queue)
-    while not object_queue.empty():
-        sleep(0.01)
-    for thread in object_threads:
-        thread.abort = True
-        while thread.isAlive():
-            thread.join(0.01)
-    put_errors_from_threads(object_threads, error_queue)
-
+def st_delete_container(options, container):
+    """ delete a given container """
+    # TODO: add better arg, error handling
+    conn = get_conn(options)
+    try:
+        conn.delete_container(container)
+    except ClientException, err:
+        if err.http_status != 404:
+            print 'Container %s not found' % repr(container)
+            raise
+            return -1
+        if err.http_status != 409:
+            raise
+            return -1
 
 def st_download(options, container, obj):
     """ st_download """
@@ -1139,7 +1065,9 @@ def st_download(options, container, obj):
         else:
             content_length = None
         etag = headers.get('etag')
+        # TODO: fix this headache - downloading to ./container/object not desired
         path = join(container, obj) or obj
+        out_file = obj 
         if path[:1] in ('/', '\\'):
             path = path[1:]
             out_file = path
@@ -1156,15 +1084,17 @@ def st_download(options, container, obj):
                 if md5sum:
                     md5sum.update(chunk)
         else:
-            dirpath = dirname(path)
-            if make_dir and dirpath and not isdir(dirpath):
-                mkdirs(dirpath)
+            # TODO: fix or remove
+            #dirpath = dirname(path)
+            #if make_dir and dirpath and not isdir(dirpath):
+            #    mkdirs(dirpath)
             if out_file == "-":
                 fp = stdout
             elif out_file:
                 fp = open(out_file, 'wb')
-            else:
-                fp = open(path, 'wb')
+            # TODO: fix or remove
+            #else:
+            #    fp = open(path, 'wb')
             read_length = 0
             if 'x-object-manifest' not in headers:
                 md5sum = md5()

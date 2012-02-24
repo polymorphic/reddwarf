@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-sys.path.append('../../')
-import swiftapi.swift
-import swiftapi.ClientException
+import swift
 from os import environ 
 import socket
 
@@ -22,13 +20,14 @@ opts = {    'auth' : environ.get('ST_AUTH'),
 argv = sys.argv
 
 if len(argv) < 2:
-    print "Error: you must supply a container name: swlist.py <container>"
-    sys.exit(1)
+    container = ''
+else:
+    container = argv[1]
 
 try:
-    items = swiftapi.swift.st_list(opts, argv[1])
+    items = swift.st_list(opts, container)
 
-except (swiftapi.ClientException, HTTPException, socket.error), err:
+except (swift.ClientException, HTTPException, socket.error), err:
     error_queue.put(str(err))
     sys.exit(1)
 

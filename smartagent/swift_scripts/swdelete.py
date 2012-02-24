@@ -2,9 +2,11 @@
 
 import sys
 import swift
-from os import environ
+from os import environ 
 import socket
 
+
+argv = sys.argv
 try:
     from eventlet.green.httplib import HTTPException, HTTPSConnection
 except ImportError:
@@ -17,13 +19,13 @@ opts = {    'auth' : environ.get('ST_AUTH'),
             'prefix' : '',
             'auth_version' : '1.0'}
 
-argv = sys.argv
 if len(argv) < 3:
-    print "swupload.py <bucket> <file>"
+    print "USAGE: swdelete.py <container> <object>"
     sys.exit(1)
 
 try:
-    swift.st_upload(opts, argv[1], argv[2])
+    print "delete object %s/%s" % (argv[1], argv[2])
+    items = swift.st_delete(opts, argv[1], argv[2])
 
 except (swift.ClientException, HTTPException, socket.error), err:
-    print str(err)
+    error_queue.put(str(err))

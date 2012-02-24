@@ -91,3 +91,15 @@ class DatabaseManager:
             LOG.error('Database error while executing %s: %s',
                 command, str(sys.exc_info()[0]))
         return
+
+def main():
+    """ main program """
+    persistence_agent = DatabaseManager(host_name='localhost',
+                        database_name='information_schema', config_file='~/.my.cnf')
+    if persistence_agent.open_connection():
+        print "Database connected"
+
+    print persistence_agent.status()
+
+if __name__ == '__main__':
+    main()

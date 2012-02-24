@@ -27,6 +27,17 @@ import os
 import time
 import subprocess
 
+from os import environ
+import swift 
+import socket
+
+try:
+    from eventlet.green.httplib import HTTPException, HTTPSConnection
+except ImportError:
+    from httplib import HTTPException, HTTPSConnection
+    
+
+
 logging.basicConfig()
 
 LOG = logging.getLogger(__name__)
@@ -43,13 +54,16 @@ def write_dotmycnf(user='os_admin', password='hpcs'):
     """ Write the .my.cnf file so as the user does not require credentials 
     for the DB """
     # open and write .my.cnf
-    mycf = open ('/root/.my.cnf', 'w')
+    # TODO: get rid of hard-code - directory should be configurable
+    mycf = open ('~/.my.cnf', 'w')
     mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
   
 class MysqlCommandHandler:
     """ Class for passing commands to mysql """
     
-    def __init__(self, host_name='15.185.175.59',
+    # TODO: why this IP address? Hardcode not good
+    #def __init__(self, host_name='15.185.175.59',
+    def __init__(self, host_name='localhost',
                  database_name='mysql', config_file='~/.my.cnf'):
         self.persistence_agent = DatabaseManager(host_name=host_name
             , database_name=database_name, config_file=config_file)
@@ -64,6 +78,7 @@ class MysqlCommandHandler:
                  os.makedirs(self.backlog_path)
              except OSError, e:
                  LOG.debug("There was an error creating %s", self.backlog_path)
+
 
     def create_user(self, username, host='localhost',
                     newpassword=random_string()):
@@ -126,7 +141,9 @@ class MysqlCommandHandler:
             LOG.error("delete user '%s'@'%s' failed" % (username, host))
         return result
 
-    def reset_user_password(self, username='root', newpassword='something'):
+
+    # TODO: user password, not the root user - make sure to not change root user password
+    def reset_user_password(self, username='do not default!', newpassword='something'):
         """ reset the user's password """
         result = ResultState.NO_CONNECTION
         
@@ -227,21 +244,46 @@ class MysqlCommandHandler:
         return result
 
     def get_snapshot_size(self, path):
-        snapshot_size = 0
-        for (path, dirs, files) in os.walk(path):
-            for file in files:
-                filename = os.path.join(path, file)
-                snapshot_size += os.path.getsize(filename)
-        return snapshot_size
-    
+        return os.path.getsize(path)
+#        snapshot_size = 0
+#        for (path, dirs, files) in os.walk(path):
+#            for file in files:
+#                filename = os.path.join(path, file)
+#                snapshot_size += os.path.getsize(filename)
+#        return snapshot_size
+            
     
     def get_response_body(self, path_specifier, result, snapshot_size):
+        temp = 'mysql-backup' + '/' + path_specifier + '.tar.gz'
         return {"method": "update_snapshot_state", 
                 "args": {"sid": path_specifier, 
                          "state": result, 
-                         "storage_uri": "temp_hard_coded", 
+                         "storage_uri": temp, 
                          "storage_size": snapshot_size }}
-   
+    def get_tar_file(self, path, tar_name):
+        try:
+            target_name = tar_name + '.tar.gz'
+            tar = tarfile.open(target_name, 'w:gz')
+            tar.add(path)
+            tar.close()
+            target = '/root/' + target_name
+#            print os.path.exists(target)
+#            print tarfile.is_tarfile(target_name)
+            
+            return target_name
+        
+            
+#            target = '/root/' + target_name
+#            
+#            if not os.path.exists(target):
+#                raise
+#            if not tarfile.is_tarfile(target_name):
+#                raise
+#            else:
+#                return target_name
+        except:
+            LOG.error('tar/compress snapshot failed somehow')
+            return ResultState.FAILED
         
     def keyword_checker(self, keyword_to_check, log_path):
         try: 
@@ -271,6 +313,7 @@ class MysqlCommandHandler:
                 return 'error'
         return 'normal'
     
+    # TODO: container MUST come from API! Change this.
     def create_db_snapshot(self, path_specifier):
         path = self.backup_path + path_specifier
         log_home = self.backlog_path + path_specifier + '_'
@@ -283,6 +326,7 @@ class MysqlCommandHandler:
         inno_backup_cmd = "innobackupex --no-timestamp %s > %s 2>&1" % (path, log_path)
 
         proc = subprocess.Popen(inno_backup_cmd, shell=True)
+
         if self.check_process(proc) == 'error':
             LOG.error('create snapshot failed somehow')
             return self.get_response_body(path_specifier, ResultState.FAILED, 0)
@@ -303,18 +347,46 @@ class MysqlCommandHandler:
             LOG.error('preparation failed somehow')
             return self.get_response_body(path_specifier, ResultState.FAILED, 0)
         
+        """ tar the entire backup folder """
+        tar_result = self.get_tar_file(path, path_specifier)
+        print tar_result
+        if tar_result == ResultState.FAILED:
+            return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
+        
+        """ start upload to swift """
+        opts = {'auth' : environ.get('ST_AUTH'),
+            'user' : environ.get('ST_USER'),
+            'key' : environ.get('ST_KEY'),
+            'snet' : False,
+            'prefix' : '',
+            'auth_version' : '1.0'}
+        try:
+            swift.st_upload(opts, 'mysql-backup', tar_result)  
+        except(ClientException, HTTPException, socket.error), err:
+            LOG.error(str(err))
+            return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
+         
         response_body = self.get_response_body(path_specifier, 
-                        self.keyword_checker(keyword_to_check, log_path), 
-                        self.get_snapshot_size(path))
+                        ResultState.SUCCESS, 
+                        self.get_snapshot_size(tar_result))
         LOG.debug(response_body)
+        
+        """ remove .tar.gz file after upload """
+        try:
+            os.remove(tar_result)
+        except:
+            print tar_result
+            print 'remove .tar.gz does not work'
+            pass
+        
         return response_body
-            
         
 def main():
     """ main program """
     handler = MysqlCommandHandler()
-#    handler.reset_user_password('root', 'hpcs')
-    handler.create_db_snapshot(path_specifier='uuid2')
+#    handler.reset_user_password(this_variable_should_be_username_of_tenant, 'hpcs')
+    # TODO: make sure to get this from API!
+    handler.create_db_snapshot(container='mysql-backup-dbasdemo', path_specifier='uuid2')
 
 if __name__ == '__main__':
     main()

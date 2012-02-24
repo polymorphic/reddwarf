@@ -59,19 +59,22 @@ class MySqlChecker:
         with open(pid_file_name, 'r') as pid_file:  # read permissions required!
             pid_string = pid_file.read()
             LOG.debug('pid file read: %s', pid_string)
-        try:
-            os.kill(int(pid_string), 0)
-        except OSError as err:
-            if err.errno == errno.ESRCH:
-                LOG.debug('os.kill: no such process %s', pid_string)
-                return False
-            elif err.errno == errno.EPERM:
-                LOG.debug('os.kill: operation not permitted on process %s',
-                    pid_string)
-                return False
-            else:
-                LOG.error('os.kill: other error (%s)', str(sys.exc_info()[0]))
-        else:
+        # TODO: this does not work since agent runs as unpriv user
+        # try:
+        #    os.kill(int(pid_string), 0)
+        # except OSError as err:
+        #    if err.errno == errno.ESRCH:
+        #        LOG.debug('os.kill: no such process %s', pid_string)
+        #        return False
+        #    elif err.errno == errno.EPERM:
+        #        LOG.debug('os.kill: operation not permitted on process %s',
+        #            pid_string)
+        #        return False
+        #    else:
+        #        LOG.error('os.kill: other error (%s)', str(sys.exc_info()[0]))
+        proc_pid_file = '/proc/' + pid_string.rstrip('\n')+ '/status'
+        print "proc_pid_file: %s" % proc_pid_file
+        if os.path.exists(proc_pid_file):
             LOG.debug('os.kill: process %s is running', pid_string)
             try:
                 mysql_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -88,6 +91,9 @@ class MySqlChecker:
                 regex = re.compile('5.[0-9]+.[0-9]+')
                 matches = regex.findall(response)  # http://www.pythonregex.com/
                 return len(matches) > 0
+            return True 
+        else:
+            LOG.debug('%s file check - process %s is NOT running', proc_pid_file, pid_string)
             return False
 
     def check_if_running(self, sleep_time_seconds=5, number_of_checks=10):
