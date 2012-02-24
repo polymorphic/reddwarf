@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import swift
 from os import environ
 import socket
@@ -16,8 +17,13 @@ opts = {    'auth' : environ.get('ST_AUTH'),
             'prefix' : '',
             'auth_version' : '1.0'}
 
+argv = sys.argv
+if len(argv) < 3:
+    print "swupload.py <bucket> <file>"
+    sys.exit(1)
+
 try:
-    swift.st_upload(opts, 'mysql-backup', 'testfile')
+    swift.st_upload(opts, argv[1], argv[2])
 
 except (swift.ClientException, HTTPException, socket.error), err:
     print str(err)

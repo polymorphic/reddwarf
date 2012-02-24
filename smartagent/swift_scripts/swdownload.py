@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import swift
 from os import environ
 import socket
@@ -15,6 +16,12 @@ opts = {    'auth' : environ.get('ST_AUTH'),
             'snet' : False,
             'prefix' : '',
             'auth_version' : '1.0'}
+
+argv = sys.argv
+
+if len(argv) < 3:
+    print "USAGE: swupload.py <container> <file>"
+    sys.exit(1)
 
 try:
     swift.st_download(opts, 'mysql-backup', 'testfile')
