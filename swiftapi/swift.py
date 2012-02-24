@@ -1015,14 +1015,15 @@ class QueueFunctionThread(Thread):
 
 def st_get_container(options, container):
     conn = get_conn(options)
+    objects = {}
     try:
         objects = conn.get_container(container, marker='');
     except ClientException, err:
         if err.http_status != 404:
             raise
             print 'Container %s not found' % (container)
-    return objects
 
+    return objects
 
 def st_delete(options, container, obj):
     """ delete an object in a given container """

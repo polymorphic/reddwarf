@@ -20,12 +20,17 @@ opts = {    'auth' : environ.get('ST_AUTH'),
 argv = sys.argv
 
 if len(argv) < 2:
-    print "Usage: swcreate_con.py <container>"
+    print "Usage: swget_con.py <container>"
     sys.exit(1)
 
 try:
-    print "create container %s" % argv[1]
-    swift.st_create_container(opts, argv[1])
+    print "get container %s" % argv[1]
+    objects = swift.st_get_container(opts, argv[1])
 
 except (swift.ClientException, HTTPException, socket.error), err:
-    error_queue.put(str(err))
+    print str(err)
+
+if len(objects) == 0:
+    print "container %s does not exist" % argv[1]
+print objects 
+

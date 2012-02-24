@@ -54,13 +54,16 @@ def write_dotmycnf(user='os_admin', password='hpcs'):
     """ Write the .my.cnf file so as the user does not require credentials 
     for the DB """
     # open and write .my.cnf
-    mycf = open ('/root/.my.cnf', 'w')
+    # TODO: get rid of hard-code - directory should be configurable
+    mycf = open ('~/.my.cnf', 'w')
     mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
   
 class MysqlCommandHandler:
     """ Class for passing commands to mysql """
     
-    def __init__(self, host_name='15.185.175.59',
+    # TODO: why this IP address? Hardcode not good
+    #def __init__(self, host_name='15.185.175.59',
+    def __init__(self, host_name='localhost',
                  database_name='mysql', config_file='~/.my.cnf'):
         self.persistence_agent = DatabaseManager(host_name=host_name
             , database_name=database_name, config_file=config_file)
@@ -76,11 +79,12 @@ class MysqlCommandHandler:
              except OSError, e:
                  LOG.debug("There was an error creating %s", self.backlog_path)
                  
-    def get_response_body(self, path_specifier, result, snapshot_size):
+    # TODO: Anna, container needed to be passed vs. hard-coded
+    def get_response_body(self, container, path_specifier, result, snapshot_size):
         return {"method": "update_snapshot_state", 
                 "args": {"sid": path_specifier, 
                          "state": result, 
-                         "storage_uri": "mysql-backup", 
+                         "storage_uri": container, 
                          "storage_size": snapshot_size }}
 
     def create_user(self, username, host='localhost',
@@ -144,7 +148,9 @@ class MysqlCommandHandler:
             LOG.error("delete user '%s'@'%s' failed" % (username, host))
         return result
 
-    def reset_user_password(self, username='root', newpassword='something'):
+
+    # TODO: user password, not the root user - make sure to not change root user password
+    def reset_user_password(self, username='do not default!', newpassword='something'):
         """ reset the user's password """
         result = ResultState.NO_CONNECTION
         
@@ -255,11 +261,13 @@ class MysqlCommandHandler:
     
     def get_tar_file(self, path, tar_name):
         try:
+            print "tar name is %s.tar.gz" % tar_name
             target_name = tar_name + '.tar.gz'
             tar = tarfile.open(target_name, 'w:gz')
             tar.add(path)
             tar.close()
-            target = '/root/' + target_name
+            # TODO: no hard code, please use config
+            target = '/var/lib/mysql-backup/' + target_name
 #            print os.path.exists(target)
 #            print tarfile.is_tarfile(target_name)
             
@@ -306,7 +314,8 @@ class MysqlCommandHandler:
                 return 'error'
         return 'normal'
     
-    def create_db_snapshot(self, path_specifier):
+    # TODO: container MUST come from API! Change this.
+    def create_db_snapshot(self, container, path_specifier):
         path = self.backup_path + path_specifier
         log_home = self.backlog_path + path_specifier + '_'
         keyword_to_check = "innobackupex: completed OK!"
@@ -321,12 +330,12 @@ class MysqlCommandHandler:
 
         if self.check_process(proc) == 'error':
             LOG.error('create snapshot failed somehow')
-            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+            return self.get_response_body(container, path_specifier, ResultState.FAILED, 0)
         
         result = self.keyword_checker(keyword_to_check, log_path) 
         if result != ResultState.SUCCESS:
             LOG.error('snapshot is not ready for preparation')
-            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+            return self.get_response_body(container, path_specifier, ResultState.FAILED, 0)
 
         """ prepare the snapshot for uploading to swift """
         
@@ -337,13 +346,14 @@ class MysqlCommandHandler:
         proc_ = subprocess.Popen(inno_prepare_cmd, shell=True)
         if self.check_process(proc_) == 'error':
             LOG.error('preparation failed somehow')
-            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+            return self.get_response_body(container, path_specifier, ResultState.FAILED, 0)
         
         """ tar the entire backup folder """
         tar_result = self.get_tar_file(path, path_specifier)
         print tar_result
         if tar_result == ResultState.FAILED:
-            return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
+            return self.get_response_body(container, path_specifier, 
+                ResultState.FAILED, self.get_snapshot_size(path))
         
         """ start upload to swift """
         opts = {'auth' : environ.get('ST_AUTH'),
@@ -352,13 +362,30 @@ class MysqlCommandHandler:
             'snet' : False,
             'prefix' : '',
             'auth_version' : '1.0'}
+
         try:
-            swift.st_upload(opts, 'mysql-backup', tar_result)  
+            cont = swift.st_get_container(opts, container)
+        except (swift.ClientException, HTTPException, socket.error), err:
+            LOG.error(str(err))
+            return self.get_response_body(container, path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
+
+        if len(cont) == 0:
+            try:
+                # create container
+                swift.st_create_container(opts, container)
+            except (swift.ClientException, HTTPException, socket.error), err:
+                LOG.error(str(err))
+                return self.get_response_body(container, path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
+
+        try:
+            # TODO: container must come from the call to this method from the agent via API
+            # TODO: container MUST use 'msyql-backup-' + tenant_id (from API talk to Vipul)
+            swift.st_upload(opts, container, tar_result)  
         except(ClientException, HTTPException, socket.error), err:
             LOG.error(str(err))
-            return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
+            return self.get_response_body(container, path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
         
-        response_body = self.get_response_body(path_specifier, 
+        response_body = self.get_response_body(container, path_specifier, 
                         self.keyword_checker(keyword_to_check, log_path), 
                         self.get_snapshot_size(tar_result))
         LOG.debug(response_body)
@@ -376,8 +403,9 @@ class MysqlCommandHandler:
 def main():
     """ main program """
     handler = MysqlCommandHandler()
-#    handler.reset_user_password('root', 'hpcs')
-    handler.create_db_snapshot(path_specifier='uuid2')
+#    handler.reset_user_password(this_variable_should_be_username_of_tenant, 'hpcs')
+    # TODO: make sure to get this from API!
+    handler.create_db_snapshot(container='mysql-backup-dbasdemo', path_specifier='uuid2')
 
 if __name__ == '__main__':
     main()
