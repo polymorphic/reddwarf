@@ -19,7 +19,6 @@ import json
 import webob
 from nova import context
 from nova import test
-from nova import exception
 
 from reddwarf.db import api as dbapi
 from reddwarf.guest import api as guestapi
@@ -40,22 +39,13 @@ def request_obj(url, method, body={}):
     req.headers["content-type"] = "application/json"
     return req
 
-def snapshot_get_all(self, context, instance_id):
-    return {'snapshot': '123'}
-
-def snapshot_get(self, context, instance_id, snapshot_id):
-    return {'result': 'success'}
-
-def snapshot_get_not_found(self, context, instance_id, snapshot_id):
-    raise exception.NotFound()
-
 def db_snapshot_create(context, values):
     return dummy_snapshot
 
 def create_snapshot(self, context, instance_id, snapshot_id, credential):
     return dummy_snapshot
 
-dummy_snapshot =  models.DbSnapShots()
+dummy_snapshot = models.DbSnapShots()
 dummy_snapshot.uuid = "123"
 dummy_snapshot.name = "test-snapshot"
 dummy_snapshot.state = "running"
@@ -80,3 +70,8 @@ class SnapshotApiTest(test.TestCase):
         req = request_obj(snapshots_url, 'POST', {"snapshot":{"instanceId": "123", "name":"test-snapsot"}})
         res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
         self.assertEqual(res.status_int, 201)
+        
+    def test_invalid_create_snapshot_request(self):
+        req = request_obj(snapshots_url, 'POST')
+        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
+        self.assertEqual(res.status_int, 400)

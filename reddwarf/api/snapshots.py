@@ -90,19 +90,22 @@ class Controller(object):
         
         # Add record to database
         db_snapshot = dbapi.db_snapshot_create(context, values)
-
-        cred = credential.Credential('user','password','tenant')
+        cred = credential.Credential('user', 'password', 'tenant')
         self.guestapi.create_snapshot(context, instance_id, uuid, cred)
-        print(db_snapshot)
         snapshot = self.view.build_single(db_snapshot, req)
-        #TODO figure out how to send back a 201 along with body
         return exc.HTTPCreated({ 'snapshot' : snapshot })
 
     def _validate(self, body):
         """Validate that the request has all the required parameters"""
         if not body:
             raise exception.BadRequest("The request contains an empty body")
-
+        try:
+            body['snapshot']
+            body['snapshot']['instanceId']
+            body['snapshot']['name']
+        except KeyError as e:
+            LOG.error("Create Snapshot Required field(s) - %s" % e)
+            raise exception.BadRequest("Required element/key - %s was not specified" % e)        
 
 def create_resource(version='1.0'):
     controller = {
