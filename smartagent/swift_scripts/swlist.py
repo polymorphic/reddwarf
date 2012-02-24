@@ -20,11 +20,12 @@ opts = {    'auth' : environ.get('ST_AUTH'),
 argv = sys.argv
 
 if len(argv) < 2:
-    print "Error: you must supply a container name: swlist.py <container>"
-    sys.exit(1)
+    container = ''
+else:
+    container = argv[1]
 
 try:
-    items = swift.st_list(opts, argv[1])
+    items = swift.st_list(opts, container)
 
 except (swift.ClientException, HTTPException, socket.error), err:
     error_queue.put(str(err))
