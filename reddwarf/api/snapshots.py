@@ -55,6 +55,14 @@ class Controller(object):
         LOG.info("Get snapshots for snapshot id %s")
         LOG.debug("%s - %s", req.environ, req.body)
         context = req.environ['nova.context']
+        user_id = context.user_id
+        
+        snapshot_list = dbapi.db_snapshot_list_by_user(context, user_id)
+        
+        snapshots = [self.view.build_single(db_snapshot, req)
+                    for db_snapshot in snapshot_list]
+        
+        return dict(snapshots=snapshots)
 
     def delete(self, req, id):
         """ Deletes a Snapshot """
