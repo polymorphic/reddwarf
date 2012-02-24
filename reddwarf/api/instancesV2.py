@@ -147,47 +147,23 @@ class ControllerV2(object):
         """ Destroys an instance """
         LOG.info("Delete Instance by ID - %s", id)
         LOG.debug("%s - %s", req.environ, req.body)
+        
         context = req.environ['nova.context']
         instance_id = dbapi.localid_from_uuid(id)
+        LOG.debug("Local ID: " + str(instance_id))
+        
+        #server_response = self.client.show(instance_id)
+        #self.client.restart(server_response.id)
+        self.client.delete(id)
+        server_response = self.client.show(id)
+        guest_state = self.get_guest_state_mapping([server_response.id])
+        LOG.info("Called OSClient.delete().  Response/guest state: %s - %s", server_response, guest_state)
+        
+        if 'deleting' not in server_response.status:
+            raise exception.InstanceFault("There was a problem deleting" +\
+                " this instance.  If this problem persists, please" +\
+                " contact Customer Support.")
 
-        # Checking the server state to see if it is building or not
-        try:
-            instance = self.compute_api.get(context, instance_id)
-            #TODO(tim.simpson): Try to get this fixed for real in Nova.
-            if instance['vm_state'] in [vm_states.SUSPENDED, vm_states.ERROR]:
-                # SUSPENDED and ERROR are not valid 'shut_down' states to the
-                # Compute API. But we want our customers to be able to delete
-                # things in the event of failure, in which case we set the state to
-                # SUSPENDED. Additionally as of 2011-10-12 ERROR is used in two
-                # places: 1, the compute manager when a resize fails, or 2. by our
-                # very own UnforgivingMemoryScheduler. So as of today ERROR is
-                # also a viable state for deletion.
-                db.instance_update(context, id, {'vm_state': vm_states.ACTIVE,})
-
-            compute_response = self.compute_api.get(context, instance_id)
-        except nova_exception.NotFound:
-            raise exception.NotFound()
-        LOG.debug("server_response - %s", compute_response)
-        build_states = [
-            nova_common.vm_states.REBUILDING,
-            nova_common.vm_states.BUILDING,
-            ]
-        if compute_response['vm_state'] in build_states:
-            # what if guest_state is failed and vm_state is still building
-            # need to be able to delete instance still
-            deletable_states = [
-                power_state.FAILED,
-                ]
-            status = dbapi.guest_status_get(instance_id).state
-            if not status in deletable_states:
-                LOG.debug("guest status(%s) will not allow delete" % status)
-                # If the state is building then we throw an exception back
-                raise exception.UnprocessableEntity("Instance %s is not ready."
-                % id)
-
-        self.server_controller.delete(req, instance_id)
-        #TODO(rnirmal): Use a deferred here to update status
-        dbapi.guest_status_delete(instance_id)
         return exc.HTTPAccepted()
 
 
@@ -253,46 +229,26 @@ class ControllerV2(object):
         return { 'instance': instance }
     
     def restart_compute_instance(self, req, instance_id):
-        """Restarts a compute instance"""
-        
-        LOG.info("Restart Compute Instance")
+        """Restarts a compute instance by ID"""     
+        LOG.info("Restart Compute Instance by ID - %s", instance_id)
         LOG.debug("%s - %s", req.environ, req.body)
         
         context = req.environ['nova.context']
-        instance_id = dbapi.localid_from_uuid(instance_id)
+        #id = dbapi.localid_from_uuid(instance_id)
+        LOG.debug("Local ID: " + str(instance_id))
+        
+        #server_response = self.client.show(instance_id)
+        #self.client.restart(server_response.id)
+        self.client.restart(instance_id)
+        server_response = self.client.show(instance_id)
+        guest_state = self.get_guest_state_mapping([server_response.id])
+        LOG.info("Called OSClient.restart().  Response/guest state: %s - %s", server_response, guest_state)
+        
+        if 'rebooting' not in server_response.status:
+            raise exception.InstanceFault("There was a problem restarting" +\
+                " this instance.  If this problem persists, please" +\
+                " contact Customer Support.")
 
-        # Checking the server state to see if it is running or not
-#        try:
-#            instance = self.compute_api.get(context, instance_id)
-#            if instance['vm_state'] in [vm_states.]:
-#                # Unless the vm_state is currently BUILDING, or is not running at all
-#                # (SHUTDOWN, SHUTOFF), we want to allow reboots.
-#                db.instance_update(context, id, {'vm_state': vm_states.ACTIVE,})
-#
-#            compute_response = self.compute_api.get(context, instance_id)
-#        except nova_exception.NotFound:
-#            raise exception.NotFound()
-#        LOG.debug("server_response - %s", compute_response)
-#        build_states = [
-#            nova_common.vm_states.REBUILDING,
-#            nova_common.vm_states.BUILDING,
-#            ]
-#        if compute_response['vm_state'] in build_states:
-#            # what if guest_state is failed and vm_state is still building
-#            # need to be able to delete instance still
-#            deletable_states = [
-#                power_state.FAILED,
-#                ]
-#            status = dbapi.guest_status_get(instance_id).state
-#            if not status in deletable_states:
-#                LOG.debug("guest status(%s) will not allow delete" % status)
-#                # If the state is building then we throw an exception back
-#                raise exception.UnprocessableEntity("Instance %s is not ready."
-#                % id)
-
-        #self.server_controller.delete(req, instance_id)
-        #TODO(rnirmal): Use a deferred here to update status
-        dbapi.instance_restart(instance_id)
         return exc.HTTPAccepted()
 
     @staticmethod

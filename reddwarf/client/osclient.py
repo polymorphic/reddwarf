@@ -46,6 +46,14 @@ class OSClient(object):
         LOG.debug("OSClient - create()")
         return self.client.servers.create(hostname, image, flavor, key_name=key_name, security_groups=security_groups)
     
+    def delete (self, id):
+        LOG.debug("OSClient - delete()")
+        return self.client.servers.delete(id)
+    
+    def restart(self, id):
+        LOG.debug("OSClient - restart()")
+        return self.client.servers.reboot(id)
+    
     def show(self, id):
         LOG.debug("OSClient - show()")
         #server = servers.Server()

@@ -87,11 +87,10 @@ class API(base.Base):
            within the specified container"""
         LOG.debug("Deleting database %s for Instance %s",
                   database, id)
-        return None
-#        return rpc.call(context, self._get_routing_key(context, id),
-#                 {"method": "delete_instance",
-#                  "args": {"database": database}
-#                 })
+        rpc.cast(context, self._get_routing_key(context, id),
+                 {"method": "delete_instance",
+                  "args": {"database": database}
+                 })
 
     def enable_root(self, context, id):
         """Make a synchronous call to enable the root user for

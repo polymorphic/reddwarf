@@ -177,7 +177,7 @@ class APIRouter(wsgi.Router):
         mapper.connect("/{project_id}/instances/{instance_id}/root",
                        controller=root.create_resource(),
                        action="is_root_enabled", conditions=dict(method=["GET"]))
-        mapper.connect("/{project_id}/instances/{instance_id}/restart_compute_instance",
+        mapper.connect("/{project_id}/instances/{instance_id}/restart",
                        controller=instancesV2.create_resource(),
                        action="restart_compute_instance", conditions=dict(method=["POST"]))
 
