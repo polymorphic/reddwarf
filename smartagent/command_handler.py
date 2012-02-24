@@ -245,12 +245,13 @@ class MysqlCommandHandler:
         return result
 
     def get_snapshot_size(self, path):
-        snapshot_size = 0
-        for (path, dirs, files) in os.walk(path):
-            for file in files:
-                filename = os.path.join(path, file)
-                snapshot_size += os.path.getsize(filename)
-        return snapshot_size
+        return os.path.getsize(path)
+#        snapshot_size = 0
+#        for (path, dirs, files) in os.walk(path):
+#            for file in files:
+#                filename = os.path.join(path, file)
+#                snapshot_size += os.path.getsize(filename)
+#        return snapshot_size
     
     def get_tar_file(self, path, tar_name):
         try:
@@ -357,6 +358,11 @@ class MysqlCommandHandler:
             LOG.error(str(err))
             return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
         
+        response_body = self.get_response_body(path_specifier, 
+                        self.keyword_checker(keyword_to_check, log_path), 
+                        self.get_snapshot_size(tar_result))
+        LOG.debug(response_body)
+        
         """ remove .tar.gz file after upload """
         try:
             os.remove(tar_result)
@@ -364,11 +370,7 @@ class MysqlCommandHandler:
             print tar_result
             print 'remove .tar.gz does not work'
             pass
-         
-        response_body = self.get_response_body(path_specifier, 
-                        self.keyword_checker(keyword_to_check, log_path), 
-                        self.get_snapshot_size(path))
-        LOG.debug(response_body)
+        
         return response_body
         
 def main():
