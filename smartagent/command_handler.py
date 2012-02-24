@@ -27,6 +27,17 @@ import os
 import time
 import subprocess
 
+from os import environ
+import swift 
+import socket
+
+try:
+    from eventlet.green.httplib import HTTPException, HTTPSConnection
+except ImportError:
+    from httplib import HTTPException, HTTPSConnection
+    
+
+
 logging.basicConfig()
 
 LOG = logging.getLogger(__name__)
@@ -64,6 +75,13 @@ class MysqlCommandHandler:
                  os.makedirs(self.backlog_path)
              except OSError, e:
                  LOG.debug("There was an error creating %s", self.backlog_path)
+                 
+    def get_response_body(self, path_specifier, result, snapshot_size):
+        return {"method": "update_snapshot_state", 
+                "args": {"sid": path_specifier, 
+                         "state": result, 
+                         "storage_uri": "mysql-backup", 
+                         "storage_size": snapshot_size }}
 
     def create_user(self, username, host='localhost',
                     newpassword=random_string()):
@@ -234,14 +252,15 @@ class MysqlCommandHandler:
                 snapshot_size += os.path.getsize(filename)
         return snapshot_size
     
-    
-    def get_response_body(self, path_specifier, result, snapshot_size):
-        return {"method": "update_snapshot_state", 
-                "args": {"sid": path_specifier, 
-                         "state": result, 
-                         "storage_uri": "temp_hard_coded", 
-                         "storage_size": snapshot_size }}
-   
+    def get_tar_file(self, path, tar_name):
+        try:
+            target_name = tar_name + '.tar.gz'
+            tar = tarfile.open(target_name, 'w:gz')
+            tar.add(path)
+            tar.close()
+        except:
+            LOG.error('tar file failed somehow')
+            return ResultState.FAILED
         
     def keyword_checker(self, keyword_to_check, log_path):
         try: 
@@ -283,6 +302,7 @@ class MysqlCommandHandler:
         inno_backup_cmd = "innobackupex --no-timestamp %s > %s 2>&1" % (path, log_path)
 
         proc = subprocess.Popen(inno_backup_cmd, shell=True)
+
         if self.check_process(proc) == 'error':
             LOG.error('create snapshot failed somehow')
             return self.get_response_body(path_specifier, ResultState.FAILED, 0)
@@ -303,6 +323,25 @@ class MysqlCommandHandler:
             LOG.error('preparation failed somehow')
             return self.get_response_body(path_specifier, ResultState.FAILED, 0)
         
+        """ tar the entire backup folder """
+        tar_result = self.get_tar_file(path, path_specifier)
+        if tar_result == ResultState.FAILED:
+            return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
+        
+        """ start upload to swift """
+        
+        opts = {'auth' : environ.get('ST_AUTH'),
+            'user' : environ.get('ST_USER'),
+            'key' : environ.get('ST_KEY'),
+            'snet' : False,
+            'prefix' : '',
+            'auth_version' : '1.0'}
+        try:
+            swift.st_upload(opts, 'mysql-backup', tar_result)  
+        except(swift.ClientException, HTTPException, socket.error), err:
+            LOG.error(str(err))
+            return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
+            
         response_body = self.get_response_body(path_specifier, 
                         self.keyword_checker(keyword_to_check, log_path), 
                         self.get_snapshot_size(path))
