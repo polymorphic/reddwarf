@@ -14,7 +14,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
+import string
 from webob import exc
 
 from nova import compute
@@ -75,10 +75,11 @@ class Controller(object):
         try:
             mydb = models.MySQLDatabase()
             mydb.name = id
+            result = self.guest_api.delete_database(ctxt, local_id, id)
         except ValueError as ve:
             LOG.error(ve)
             raise exception.BadRequest(ve.message)
-
+        
         self.guest_api.delete_database(ctxt, local_id, mydb.serialize())
         return exc.HTTPAccepted()
 

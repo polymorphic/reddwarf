@@ -148,6 +148,19 @@ def instance_create(user_id, project_id, instance_name, server):
         instance.save(session=session)
     
     return instance
+
+def instance_restart(instance_id):
+    """Restarts a compute instance"""
+    LOG.debug("instance_restart id = %s" % instance_id)
+    
+    from nova.db.sqlalchemy import models as nova_models
+    
+    #instance.update({'task_state': utils.utf8(task_state.name(REBOOTING))})
+    session = get_session()
+    with session.begin():
+        session.query(Instance).\
+                filter_by(id=instance_id).\
+                update({'task_state': 'REBOOTING'})
     
 @require_admin_context
 def show_instances_on_host(context, id):
@@ -516,10 +529,9 @@ def db_snapshot_update(uuid, state, storage_uri, storage_size):
     LOG.debug("Updating Snapshot record with uuid=%s." % uuid)
     session = get_session()
     with session.begin():
-        try:
-            record = session.query(models.DbSnapShots).filter_by(uuid=uuid).one()
-        except NoResultFound:
-            LOG.debug("No such snapshot record found.")
+        record = session.query(models.DbSnapShots).filter_by(uuid=uuid).one()
+        if not record:
+            raise exception.SnapshotNotFound(snapshot_id=uuid)
         record.update({'updated_at': datetime.datetime.utcnow(),
                        'storage_uri': storage_uri,
                        'storage_size': storage_size,

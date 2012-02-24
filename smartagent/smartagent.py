@@ -45,19 +45,6 @@ FH = logging.FileHandler(os.path.join(AGENT_HOME, '/logs/smartagent.log'))
 FH.setLevel(logging.DEBUG)
 LOG.addHandler(FH)
 
-# State codes for Reddwarf API
-#NOSTATE = 0x00
-#RUNNING = 0x01
-#BLOCKED = 0x02
-#PAUSED = 0x03
-#SHUTDOWN = 0x04
-#SHUTOFF = 0x05
-#CRASHED = 0x06
-#SUSPENDED = 0x07
-#FAILED = 0x08
-#BUILDING = 0x09
-
-
 class SmartAgent:
     """This class provides an agent able to communicate with a RedDwarf API
     server and take action on a particular RedDwarf instance based on the
@@ -269,9 +256,9 @@ class SmartAgent:
         """ This calls the method to check MySQL's running status """
         if self.checker.check_if_running(sleep_time_seconds=3,
             number_of_checks=5):
-            result = RUNNING  # TODO remove dependencies from VM state codes
+            result = ResultState.RUNNING
         else:
-            result = NOSTATE
+            result = ResultState.NOSTATE
         return result
 
     def get_system_info(self):
