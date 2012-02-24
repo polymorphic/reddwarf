@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-sys.path.append('../../')
-import swiftapi.swift
-import swiftapi.ClientException
+import swift
 from os import environ 
 import socket
 
@@ -26,9 +24,9 @@ if len(argv) < 2:
     sys.exit(1)
 
 try:
-    items = swiftapi.swift.st_list(opts, argv[1])
+    items = swift.st_list(opts, argv[1])
 
-except (swiftapi.ClientException, HTTPException, socket.error), err:
+except (swift.ClientException, HTTPException, socket.error), err:
     error_queue.put(str(err))
     sys.exit(1)
 
