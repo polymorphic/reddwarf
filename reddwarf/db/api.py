@@ -516,10 +516,9 @@ def db_snapshot_update(uuid, state, storage_uri, storage_size):
     LOG.debug("Updating Snapshot record with uuid=%s." % uuid)
     session = get_session()
     with session.begin():
-        try:
-            record = session.query(models.DbSnapShots).filter_by(uuid=uuid).one()
-        except NoResultFound:
-            LOG.debug("No such snapshot record found.")
+        record = session.query(models.DbSnapShots).filter_by(uuid=uuid).one()
+        if not record:
+            raise exception.SnapshotNotFound(snapshot_id=uuid)
         record.update({'updated_at': datetime.datetime.utcnow(),
                        'storage_uri': storage_uri,
                        'storage_size': storage_size,
