@@ -24,7 +24,7 @@ if len(argv) < 3:
     sys.exit(1)
 
 try:
-    swift.st_download(opts, 'mysql-backup', 'testfile')
+    swift.st_download(opts, argv[1], argv[2])
 
 except (swift.ClientException, HTTPException, socket.error), err:
     print str(err)

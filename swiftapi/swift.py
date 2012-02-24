@@ -1183,7 +1183,9 @@ def st_download(options, container, obj):
         else:
             content_length = None
         etag = headers.get('etag')
+        # TODO: fix this headache
         path = join(container, obj) or obj
+        out_file = obj 
         if path[:1] in ('/', '\\'):
             path = path[1:]
             out_file = path
@@ -1200,15 +1202,17 @@ def st_download(options, container, obj):
                 if md5sum:
                     md5sum.update(chunk)
         else:
-            dirpath = dirname(path)
-            if make_dir and dirpath and not isdir(dirpath):
-                mkdirs(dirpath)
+            # TODO: fix or remove
+            #dirpath = dirname(path)
+            #if make_dir and dirpath and not isdir(dirpath):
+            #    mkdirs(dirpath)
             if out_file == "-":
                 fp = stdout
             elif out_file:
                 fp = open(out_file, 'wb')
-            else:
-                fp = open(path, 'wb')
+            # TODO: fix or remove
+            #else:
+            #    fp = open(path, 'wb')
             read_length = 0
             if 'x-object-manifest' not in headers:
                 md5sum = md5()
