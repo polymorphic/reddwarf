@@ -51,11 +51,11 @@ class OSClient(object):
         return self.client.servers.delete(id)
     
     def restart(self, id):
-        LOG.debug("OSClient - restart()")
+        LOG.debug("OSClient - restart() using id %s", id)
         return self.client.servers.reboot(id)
     
     def show(self, id):
-        LOG.debug("OSClient - show()")
+        LOG.debug("OSClient - show() using id %s", id)
         #server = servers.Server()
         #server.id = id
         return self.client.servers.get(id)

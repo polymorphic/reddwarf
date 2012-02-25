@@ -152,9 +152,8 @@ class ControllerV2(object):
         instance_id = dbapi.localid_from_uuid(id)
         LOG.debug("Local ID: " + str(instance_id))
         
-        #server_response = self.client.show(instance_id)
-        #self.client.restart(server_response.id)
-        self.client.delete(id)
+        server_response = self.client.show(id)
+        self.client.delete(server_response.id)
         server_response = self.client.show(id)
         guest_state = self.get_guest_state_mapping([server_response.id])
         LOG.info("Called OSClient.delete().  Response/guest state: %s - %s", server_response, guest_state)
@@ -234,10 +233,10 @@ class ControllerV2(object):
         LOG.debug("%s - %s", req.environ, req.body)
         
         context = req.environ['nova.context']
-        #id = dbapi.localid_from_uuid(instance_id)
-        LOG.debug("Local ID: " + str(instance_id))
+        id = dbapi.localid_from_uuid(instance_id)
+        LOG.debug("Local ID: " + str(id))
         
-        #server_response = self.client.show(instance_id)
+        server_response = self.client.show(instance_id)
         #self.client.restart(server_response.id)
         self.client.restart(instance_id)
         server_response = self.client.show(instance_id)
