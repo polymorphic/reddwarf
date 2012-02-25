@@ -55,18 +55,25 @@ def write_dotmycnf(user='os_admin', password='hpcs'):
     for the DB """
     # open and write .my.cnf
     # TODO: get rid of hard-code - directory should be configurable
-    mycf = open ('~/.my.cnf', 'w')
-    mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
+    cnf_file_name = os.path.join(environ['HOME'], '.my.cnf')
+    try:
+        with open (cnf_file_name, 'w') as mycf:
+            mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
+    except OSError as os_error:
+        LOG.error('Error writing .cnf file: %s', os_error)
   
 class MysqlCommandHandler:
     """ Class for passing commands to mysql """
     
     # TODO: why this IP address? Hardcode not good
     #def __init__(self, host_name='15.185.175.59',
-    def __init__(self, host_name='localhost',
-                 database_name='mysql', config_file='~/.my.cnf'):
+    def __init__(self,
+                 host_name='localhost',
+                 database_name='mysql',
+                 config_file='~/.my.cnf'):
         self.persistence_agent = DatabaseManager(host_name=host_name
-            , database_name=database_name, config_file=config_file)
+            , database_name=database_name,
+            config_file=config_file)
         self.persistence_agent.open_connection()
         
         """ sanity check for log folder existence """
@@ -77,38 +84,38 @@ class MysqlCommandHandler:
              try:
                  os.makedirs(self.backlog_path)
              except OSError, e:
-                 LOG.debug("There was an error creating %s", self.backlog_path)
+                 LOG.debug("There was an error creating %s",
+                     self.backlog_path)
 
-
-    def create_user(self, username, host='localhost',
+    def create_user(self,
+                    username,
+                    host='localhost',
                     newpassword=random_string()):
         """ create a new user """
-        result = ResultState.NO_CONNECTION
         sql_commands = []
 
         # Prepare SQL query to UPDATE required records
         sql_create = \
-        "grant all privileges on *.* to '%s'@'%s' identified by '%s'"\
-        % (username, host, newpassword)
+            "grant all privileges on *.* to '%s'@'%s' identified by '%s'"\
+            % (username, host, newpassword)
         sql_commands.append(sql_create)
-       
-        # Open database connection
+
         try:
+            #  connection opened in __init__
             self.persistence_agent.execute_sql_commands(sql_commands)
             result = ResultState.SUCCESS
-        except _mysql.Error:
+        except _mysql.Error as error:
             result = ResultState.FAILED
-            LOG.error("Reset user password failed")
+            LOG.error("Reset user password failed: %s", error)
         return result
 
     def delete_user(self, username):
         """ delete the user, all grants """
-        result = ResultState.NO_CONNECTION
         sql_commands = []
         
         # Prepare SQL query to UPDATE required records
         sql_delete = \
-        "delete from mysql.user where User = '%s'" % (username)
+            "delete from mysql.user where User = '%s'" % (username)
         sql_flush = "FLUSH PRIVILEGES"
         sql_commands.append(sql_delete)
         sql_commands.append(sql_flush)
@@ -119,16 +126,15 @@ class MysqlCommandHandler:
             result = ResultState.SUCCESS
         except _mysql.Error:
             result = ResultState.FAILED
-            LOG.error("delete user '%s' failed" % (username))
+            LOG.error("delete user '%s' failed", username)
         return result
 
     def delete_user_host(self, username, host):
         """ delete the user, specific user@host grant """
-        result = ResultState.NO_CONNECTION
         
         # Prepare SQL query to UPDATE required records
         sql_delete = \
-        "drop user '%s'@'%s'" % (username, host)
+            "drop user '%s'@'%s'" % (username, host)
         sql_commands = []
         sql_commands.append(sql_delete)
        
@@ -136,21 +142,23 @@ class MysqlCommandHandler:
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
             result = ResultState.SUCCESS
-        except _mysql.Error:
+        except _mysql.Error as error:
             result = ResultState.FAILED
-            LOG.error("delete user '%s'@'%s' failed" % (username, host))
+            LOG.error("delete user '%s'@'%s' failed: %s", username, host,
+                error)
         return result
 
 
     # TODO: user password, not the root user - make sure to not change root user password
-    def reset_user_password(self, username='do not default!', newpassword='something'):
+    def reset_user_password(self,
+                            username='do not default!',
+                            newpassword='something'):
         """ reset the user's password """
-        result = ResultState.NO_CONNECTION
         
         # Prepare SQL query to UPDATE required records
         sql_update = \
-        "update mysql.user set Password=PASSWORD('%s') WHERE User='%s'"\
-        % (newpassword, username)
+            "update mysql.user set Password=PASSWORD('%s') WHERE User='%s'"\
+            % (newpassword, username)
         sql_flush = "FLUSH PRIVILEGES"
         sql_commands = []
         sql_commands.append(sql_update)
@@ -160,20 +168,19 @@ class MysqlCommandHandler:
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
             result = ResultState.SUCCESS
-        except _mysql.Error:
+        except _mysql.Error as error:
             result = ResultState.FAILED
-            LOG.error("Reset user password failed")
+            LOG.error("Reset user password failed: %s", error)
         return result
 
     def reset_agent_password(self, username='os_admin', newpassword='hpcs'):
-        """ Reset the MySQL account password for the agent's account """ 
-        result = ResultState.NO_CONNECTION
+        """ Reset the MySQL account password for the agent's account """
         # generate a password
         newpassword = random_string(16)
 
         # SQL statement to change agent password 
         sql = "SET PASSWORD FOR '%s'@'localhost'"\
-        " PASSWORD('%s')" % (username, newpassword)
+            " PASSWORD('%s')" % (username, newpassword)
         sql_commands = []
         sql_commands.append(sql)
        
@@ -185,23 +192,19 @@ class MysqlCommandHandler:
             # write the .my.cnf for the agent user so the agent can connect 
             write_dotmycnf(username, newpassword)
             
-        except _mysql.Error:
+        except _mysql.Error as error:
             result = ResultState.FAILED
-            LOG.error("Reset agent password failed")
+            LOG.error("Reset agent password failed: %s", error)
 
         return result
 
     def create_database(self, database):
         """ Create a database """
         # ensure the variable database is set
-        try:
-            database 
-        except NameError:
+        if database is None:
             result = ResultState.FAILED
             LOG.error("Create database failed : no database defined")
             return result
-
-        result = ResultState.NO_CONNECTION
         
         sql_create = \
         "create database `%s`" % (database)
@@ -212,23 +215,19 @@ class MysqlCommandHandler:
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
             result = ResultState.SUCCESS
-        except _mysql.Error:
+        except _mysql.Error as error:
             result = ResultState.FAILED
-            LOG.error("Create database failed")
+            LOG.error("Create database failed: %s", error)
         return result
 
     def drop_database(self, database):
         """ Drop a database """
         # ensure the variable database is set
-        try:
-            database 
-        except NameError:
+        if database is None:
             result = ResultState.FAILED
             LOG.error("Drop database failed : no database defined")
             return result
 
-        result = ResultState.NO_CONNECTION
-        
         sql_drop = \
         "drop database `%s`" % (database)
         sql_commands = []
@@ -238,10 +237,12 @@ class MysqlCommandHandler:
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
             result = ResultState.SUCCESS
-        except _mysql.Error:
+        except _mysql.Error as error:
             result = ResultState.FAILED
-            LOG.error("Drop database failed")
+            LOG.error("Drop database failed: %s", error)
         return result
+
+    # TODO: dragos to code-review below this line
 
     def get_snapshot_size(self, path):
         return os.path.getsize(path)
@@ -260,6 +261,7 @@ class MysqlCommandHandler:
                          "state": result, 
                          "storage_uri": temp, 
                          "storage_size": snapshot_size }}
+
     def get_tar_file(self, path, tar_name):
         try:
             target_name = tar_name + '.tar.gz'
