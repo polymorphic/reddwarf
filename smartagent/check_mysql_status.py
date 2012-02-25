@@ -44,57 +44,89 @@ class MySqlChecker:
         self.port_number = port_number
         self.pid_file_path = pid_file_path
 
-    def is_running(self):
+    def _get_pid(self):
+        """
+        Extracts PID string from .pid file, or None if the file
+        doesn't exist/cannot be read
+        """
+        pid_file_name = os.path.join(self.pid_file_path, os.uname()[1])\
+            + '.pid'
+        LOG.debug('Checking pid file %s', pid_file_name)
+        try:
+            with open(pid_file_name, 'r') as pid_file:
+                pid_string = pid_file.read().rstrip('\n')
+                LOG.debug('pid file read: %s', pid_string)
+        except IOError as io_exception:
+            LOG.debug('Exception caught while opening PID file; %s',
+                str(io_exception))
+            return None
+        else:
+            return pid_string
+
+    def _is_process_alive(self, pid_string):
+        """
+        Verifies whether the process is alive:
+        - First kill -0
+        - If that fails (no permission) then from the /proc filesystem
+        """
+        try:
+            os.kill(int(pid_string), 0)  # send null signal
+        except OSError as err:
+            if err.errno == errno.ESRCH:
+                LOG.debug('Process %s doesn''t exist:', pid_string)
+                return False
+            elif err.errno == errno.EPERM:
+                LOG.debug('Operation not permitted on process %s',
+                    pid_string)
+                if not os.path.isdir('/proc'):
+                    LOG.debug('/proc filesystem doesn''t exist')
+                    return False
+                proc_pid_file = os.path.join('/proc',
+                    pid_string,
+                    'status')
+                LOG.debug('Checking /proc file %s', proc_pid_file)
+                return os.path.exists(proc_pid_file)
+            else:
+                LOG.error('Unknown error while checking \
+                    process state: %s', str(sys.exc_info()[0]))
+        else:
+            LOG.debug('Process %s responded to null signal', pid_string)
+            return True
+
+    def check_once_if_running(self):
         """
         Checks if mysqld is running:
-        - First look for the pid file (distribution-dependent; default value for ubuntu)
-        - Next kill -0 to check if the process is running (same as in the mysql.server script)
-        - Finally open the socket and look for the version number in the protocol handshake string
+        - First look for the pid file (distribution-dependent; default
+        value for ubuntu)
+        - Next send the null signal to check if the process is running
+        (same as in the mysql.server script)
+        - Finally open the socket and look for the version number in the
+         protocol handshake string
         """
-        pid_file_name = os.path.join(self.pid_file_path, os.uname()[1]) \
-            + '.pid'
-        LOG.debug('Checking pid file: %s', pid_file_name)
-        if not os.path.isfile(pid_file_name):
+
+        pid_string = self._get_pid()
+        if pid_string is None:
             return False
-        with open(pid_file_name, 'r') as pid_file:  # read permissions required!
-            pid_string = pid_file.read()
-            LOG.debug('pid file read: %s', pid_string)
-        # TODO: this does not work since agent runs as unpriv user
-        # try:
-        #    os.kill(int(pid_string), 0)
-        # except OSError as err:
-        #    if err.errno == errno.ESRCH:
-        #        LOG.debug('os.kill: no such process %s', pid_string)
-        #        return False
-        #    elif err.errno == errno.EPERM:
-        #        LOG.debug('os.kill: operation not permitted on process %s',
-        #            pid_string)
-        #        return False
-        #    else:
-        #        LOG.error('os.kill: other error (%s)', str(sys.exc_info()[0]))
-        proc_pid_file = '/proc/' + pid_string.rstrip('\n')+ '/status'
-        print "proc_pid_file: %s" % proc_pid_file
-        if os.path.exists(proc_pid_file):
-            LOG.debug('os.kill: process %s is running', pid_string)
-            try:
-                mysql_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                mysql_socket.connect((self.host_name, self.port_number))
-                response = mysql_socket.recv(4096)
-                LOG.debug('mysqld protocol response: %s', response)
-            except:
-                LOG.error('Error connecting to mysqld on %s:%d',
-                    self.host_name, self.port_number)
-            else:
-                mysql_socket.close()
-                LOG.debug('Looking for MySQL protocol version 5.X.X')
-                # TODO: MySQL protocol version-dependent
-                regex = re.compile('5.[0-9]+.[0-9]+')
-                matches = regex.findall(response)  # http://www.pythonregex.com/
-                return len(matches) > 0
-            return True 
+        if not self._is_process_alive(pid_string):
+            return False
+        try:
+            mysql_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            mysql_socket.connect((self.host_name, self.port_number))
+            response = mysql_socket.recv(4096)
+            LOG.debug('mysqld protocol response: %s', response)
+        except Exception:
+            LOG.error('Error connecting to mysqld on %s:%d: %s',
+                self.host_name,
+                self.port_number,
+                str(sys.exc_info()[0]))
+            return False
         else:
-            LOG.debug('%s file check - process %s is NOT running', proc_pid_file, pid_string)
-            return False
+            mysql_socket.close()
+            LOG.debug('Looking for MySQL protocol version 5.X.X')
+            # TODO: MySQL protocol version-dependent
+            regex = re.compile('5.[0-9]+.[0-9]+')
+            matches = regex.findall(response)  # http://www.pythonregex.com/
+            return len(matches) > 0
 
     def check_if_running(self, sleep_time_seconds=5, number_of_checks=10):
         """
@@ -106,15 +138,15 @@ class MySqlChecker:
         try:
             while iteration < number_of_checks:
                 LOG.debug('Checking iteration %d' % iteration)
-                if self.is_running():
+                if self.check_once_if_running():
                     return True
                 else:
                     time.sleep(sleep_time_seconds)
                     iteration = iteration + 1
             return False
-        except:
+        except Exception:
             LOG.error('Exception while iterating, aborting: %s',
-                sys.exc_info()[0])
+                str(sys.exc_info()[0]))
             raise
 
 
