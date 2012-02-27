@@ -178,8 +178,8 @@ class Controller(object):
         instance_name = body['instance']['name']
 
         # This should be fetched from Flags, image should contain mysqld and agent
-        image_id = '407'
-        flavor_ref = '102'
+        image_id = FLAGS.default_image
+        flavor_ref = FLAGS.default_instance_type
 
         # Create the Volume before hand
         # volume_ref = self.create_volume(context, body)
