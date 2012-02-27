@@ -29,7 +29,6 @@ from reddwarf.api import config
 from reddwarf.api import databases
 from reddwarf.api import images
 from reddwarf.api import instances
-from reddwarf.api import instancesV2
 from reddwarf.api import guests
 from reddwarf.api import hosts
 from reddwarf.api import management
@@ -148,7 +147,7 @@ class APIRouter(wsgi.Router):
             # users can hit that api, others would just be rejected.
 
         mapper.resource("instance", "instances",
-                        controller=instancesV2.create_resource(),
+                        controller=instances.create_resource(),
                         collection={'detail': 'GET'},
                         member=instance_members)
 
@@ -178,7 +177,7 @@ class APIRouter(wsgi.Router):
                        controller=root.create_resource(),
                        action="is_root_enabled", conditions=dict(method=["GET"]))
         mapper.connect("/{project_id}/instances/{instance_id}/restart",
-                       controller=instancesV2.create_resource(),
+                       controller=instances.create_resource(),
                        action="restart_compute_instance", conditions=dict(method=["POST"]))
 
         ## demo for e2e API-MQ-Agent

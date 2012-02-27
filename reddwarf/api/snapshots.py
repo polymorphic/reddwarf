@@ -77,8 +77,8 @@ class Controller(object):
         
         LOG.debug("Deleting from Container: %s - File: %s", container, file)
         
+        ## TODO Move these to database!
         ST_AUTH="https://region-a.geo-1.identity.hpcloudsvc.com:35357/auth/v1.0"
-        ST_CONTAINER="mysql-backup"
         ST_USER="21343820976858:dbas@hp.com"
         ST_KEY="Dbas-312"
 
