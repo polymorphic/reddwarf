@@ -173,14 +173,20 @@ class APIRouter(wsgi.Router):
         mapper.connect("/{project_id}/instances/{instance_id}/root",
                        controller=root.create_resource(),
                        action="create", conditions=dict(method=["POST"]))
+
         mapper.connect("/{project_id}/instances/{instance_id}/root",
                        controller=root.create_resource(),
                        action="is_root_enabled", conditions=dict(method=["GET"]))
+
+        mapper.connect("/{project_id}/instances/{instance_id}/resetpassword",
+               controller=instances.create_resource(),
+               action="reset_db_password", conditions=dict(method=["POST"]))
+    
         mapper.connect("/{project_id}/instances/{instance_id}/restart",
                        controller=instances.create_resource(),
                        action="restart_compute_instance", conditions=dict(method=["POST"]))
 
-        ## demo for e2e API-MQ-Agent
+        # the following endpoints are only for HPCS internal E2E demo
         mapper.connect("/{project_id}/instances/{instance_id}/smartagent_demo",
                        controller=demo.create_resource(),
                        action="reset_password", conditions=dict(method=["POST"]))
@@ -192,6 +198,8 @@ class APIRouter(wsgi.Router):
         mapper.connect("/{project_id}/instances/{instance_id}/snapshot_demo",
             controller=demo.create_resource(),
             action="create_snapshot", conditions=dict(method=["POST"]))
+        # demo endpoints ended 
+
 
         mapper.connect("/", controller=versions.create_resource(),
                        action="dispatch")

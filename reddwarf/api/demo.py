@@ -62,7 +62,7 @@ class Controller(object):
         LOG.info("Demo call to Smart Agent to reset MySQL password on Instance %s", instance_id)
         ctxt = context.get_admin_context()
         try:
-            result = self.guest_api.reset_password(ctxt, instance_id)
+            result = self.guest_api.reset_password(ctxt, instance_id, password="hpcs")
             return {'Response': str(result)}
         except Exception as err:
             LOG.error(err)
