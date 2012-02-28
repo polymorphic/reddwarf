@@ -40,8 +40,10 @@ logging.basicConfig(level=logging.DEBUG,
                     filemode='a')
 
 AGENT_HOME = '/home/nova'
-LOG = logging.getLogger()
-FH = logging.FileHandler(os.path.join(AGENT_HOME, '/logs/smartagent.log'))
+LOG = logging.getLogger(__name__)
+FH = logging.FileHandler(os.path.join(AGENT_HOME,
+    'logs',
+    'smartagent.log'))
 FH.setLevel(logging.DEBUG)
 LOG.addHandler(FH)
 
@@ -51,11 +53,12 @@ class SmartAgent:
     contents of the messages received."""
 
     def __init__(self,
-                 msg_service,
-                 pidfile=os.path.join(AGENT_HOME, '/lock/smartagent.pid')):
+                 msg_service):
         """ Constructor method """
         # pylint thought too many arguments. But should keep around.
-        self.pidfile = pidfile
+        self.pidfile = os.path.join(AGENT_HOME,
+            'lock',
+            'smartagent.pid')
         self.stdin = '/dev/null' 
         self.stdout = '/dev/null'
         self.stderr = '/dev/null'
@@ -63,8 +66,7 @@ class SmartAgent:
         self.messaging = msg_service
         self.messaging.callback = self.process_message
         self.agent_username = 'os_admin'
-        # TODO extract into instance variable
-        self.checker = MySqlChecker()  
+        self.checker = MySqlChecker()
         self.handler = MysqlCommandHandler()
 
     def daemonize(self):
@@ -137,8 +139,8 @@ class SmartAgent:
         """ Stop the daemon """
         LOG.debug('Checking for %s', self.pidfile)
         if not os.path.isfile(self.pidfile):
-            sys.stderr.write("Daemon not running?\n" % self.pidfile)
-            sys.exit(os.EX_OK)
+            sys.stderr.write("PID file not found: %s\n" % self.pidfile)
+            sys.exit(os.EX_OK)  # TODO: do not exit so can restart a stopped agent
         # Get the pid from the pidfile
         with open(self.pidfile,'r') as f:
             pid_string = f.read().strip()
@@ -147,12 +149,12 @@ class SmartAgent:
         except ValueError:
             pid = None
         if not pid:
-            sys.stderr.write("Can't parse PID form pidfile %s\n" % self.pidfile)
+            sys.stderr.write("Can't parse PID form pidfile: %s\n" % self.pidfile)
             sys.exit(os.EX_OSFILE)
 
         # Try killing the daemon process       
         try:
-            while 1:
+            while 1:  # TODO: prevent infinite loop
                 os.kill(pid, SIGTERM)
                 time.sleep(0.1)
         except OSError, err:
