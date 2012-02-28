@@ -31,6 +31,7 @@ import tarfile
 from os import environ
 import swift 
 import socket
+from check_mysql_status import MySqlChecker
 
 try:
     from eventlet.green.httplib import HTTPException, HTTPSConnection
@@ -436,29 +437,66 @@ class MysqlCommandHandler:
         LOG.debug(response_body)
         return response_body
     
-    def restart_database(self, msg):
+    def restart_database(self):
         """ This restarts MySQL for reading conf changes"""
-        result = subprocess.call("sudo service mysql restart", shell=True)
-        return result
-
-    def stop_database(self, msg):
-        """ This restarts MySQL for reading conf changes"""
-        result = subprocess.call("sudo service mysql stop", shell=True)
-        return result
-    def start_database(self, msg):
-        """ This restarts MySQL for reading conf changes"""
-        result = subprocess.call("sudo service mysql start", shell=True)
-        return result
+        try: 
+            proc = subprocess.call("sudo service mysql restart", shell=True)
+        except (OSError, ValueError) as ex_oserror:
+            LOG.error('CALL exception caught: %s', ex_oserror)
+            return ResultState.FAILED
+        except Exception as ex:
+            LOG.error('CALL exception caught: %s', ex)
+            return ResultState.FAILED
+        else:
+            if self.check_process(proc) != 'normal':
+                LOG.error('restart mysql failed somehow')
+                return ResultState.FAILED
+            return self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
     
+
+    def stop_database(self):
+        """ This stop MySQL """
+        try:
+            result = subprocess.call("sudo service mysql stop", shell=True)
+        except (OSError, ValueError) as ex_oserror:
+            LOG.error('CALL exception caught: %s', ex_oserror)
+            return ResultState.FAILED
+        except Exception as ex:
+            LOG.error('CALL exception caught: %s', ex)
+            return ResultState.FAILED
+        else:
+            if self.check_process(proc) != 'normal':
+                LOG.error('restart mysql failed somehow')
+                return ResultState.FAILED
+            return not self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
+        
+    def start_database(self):
+        """ This start MySQL for reading conf changes"""
+        try:
+            result = subprocess.call("sudo service mysql start", shell=True)
+        except (OSError, ValueError) as ex_oserror:
+            LOG.error('CALL exception caught: %s', ex_oserror)
+            return ResultState.FAILED
+        except Exception as ex:
+            LOG.error('CALL exception caught: %s', ex)
+            return ResultState.FAILED
+        else:
+            if self.check_process(proc) != 'normal':
+                LOG.error('restart mysql failed somehow')
+                return ResultState.FAILED
+            return self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
     
     def apply_db_snapshot(self, uri, st_user, st_key, st_auth):
         """ stop mysql server """
-        if self.stop_database('') !=0:
+        if not self.stop_database():
             return ResultState.FAILED
+        
         """ push the current data to history folder """
         """ download snapshot from swift """
         """ decompress snapshot """
         """ restart mysql """
+        if not self.start_database():
+            return ResultState.FAILED
         
 def main():
     """ main program """
