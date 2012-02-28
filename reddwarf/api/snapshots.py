@@ -28,6 +28,7 @@ from reddwarf.db import api as dbapi
 from reddwarf.db import snapshot_state
 from reddwarf.client import credential
 from swiftapi import swift
+import urlparse
 
 LOG = logging.getLogger('reddwarf.api.snapshots')
 LOG.setLevel(logging.DEBUG)
@@ -46,19 +47,35 @@ class Controller(object):
         LOG.info("Get snapshot %s" % id)
         LOG.debug("%s - %s", req.environ, req.body)
         context = req.environ['nova.context']
-        
+
         db_snapshot = dbapi.db_snapshot_get(context, id)
         snapshot = self.view.build_single(db_snapshot, req)
         return { 'snapshot' : snapshot }
     
     def index(self, req):
         """ Returns a list of Snapshots for the Instance """
-        LOG.info("Get snapshots for snapshot id %s")
+        LOG.info("List snapshots")
         LOG.debug("%s - %s", req.environ, req.body)
         context = req.environ['nova.context']
         user_id = context.user_id
+
+        instance_id = ''
+        if req.query_string is not '':
+            # returns list of tuples
+            name_value_pairs = urlparse.parse_qsl(req.query_string,
+                                         keep_blank_values=True,
+                                         strict_parsing=False)
+            for name_value in name_value_pairs:
+                if name_value[0] == 'instanceId':
+                    instance_id = name_value[1]
+                    break
         
-        snapshot_list = dbapi.db_snapshot_list_by_user(context, user_id)
+        if instance_id is not '':
+            LOG.debug("Listing snapshots by instance_id %s", instance_id)
+            snapshot_list = dbapi.db_snapshot_list_by_user_and_instance(context, user_id, instance_id)
+        else:
+            LOG.debug("Listing snapshots by user_id %s", user_id)
+            snapshot_list = dbapi.db_snapshot_list_by_user(context, user_id)
         
         snapshots = [self.view.build_single(db_snapshot, req)
                     for db_snapshot in snapshot_list]

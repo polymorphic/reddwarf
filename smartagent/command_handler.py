@@ -31,6 +31,8 @@ import tarfile
 from os import environ
 import swift 
 import socket
+from check_mysql_status import MySqlChecker
+import string
 
 try:
     from eventlet.green.httplib import HTTPException, HTTPSConnection
@@ -436,29 +438,126 @@ class MysqlCommandHandler:
         LOG.debug(response_body)
         return response_body
     
-    def restart_database(self, msg):
+    def restart_database(self):
         """ This restarts MySQL for reading conf changes"""
-        result = subprocess.call("sudo service mysql restart", shell=True)
-        return result
-
-    def stop_database(self, msg):
-        """ This restarts MySQL for reading conf changes"""
-        result = subprocess.call("sudo service mysql stop", shell=True)
-        return result
-    def start_database(self, msg):
-        """ This restarts MySQL for reading conf changes"""
-        result = subprocess.call("sudo service mysql start", shell=True)
-        return result
+        if self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=3):
+            self.stop_database()
+        try: 
+            proc = subprocess.call("sudo service mysql restart", shell=True)
+        except (OSError, ValueError) as ex_oserror:
+            LOG.error('CALL exception caught: %s', ex_oserror)
+            return ResultState.FAILED
+        except Exception as ex:
+            LOG.error('CALL exception caught: %s', ex)
+            return ResultState.FAILED
+        else:
+            if self.check_process(proc) != 'normal':
+                LOG.error('restart mysql failed somehow')
+                return ResultState.FAILED
+            return self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
     
+
+    def stop_database(self):
+        """ This stop MySQL """
+        if not self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=3):
+            return True
+        try:
+            proc = subprocess.call("sudo service mysql stop", shell=True)
+        except (OSError, ValueError) as ex_oserror:
+            LOG.error('CALL exception caught: %s', ex_oserror)
+            return ResultState.FAILED
+        except Exception as ex:
+            LOG.error('CALL exception caught: %s', ex)
+            return ResultState.FAILED
+        else:
+            if self.check_process(proc) != 'normal':
+                LOG.error('restart mysql failed somehow')
+                return ResultState.FAILED
+            return not self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
+        
+    def start_database(self):
+        """ This start MySQL """
+        if self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=3):
+            return True
+        try:
+            proc = subprocess.call("sudo service mysql start", shell=True)
+        except (OSError, ValueError) as ex_oserror:
+            LOG.error('CALL exception caught: %s', ex_oserror)
+            return ResultState.FAILED
+        except Exception as ex:
+            LOG.error('CALL exception caught: %s', ex)
+            return ResultState.FAILED
+        else:
+            if self.check_process(proc) != 'normal':
+                LOG.error('restart mysql failed somehow')
+                return ResultState.FAILED
+            return self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
+        
+    def get_response_body_for_apply_snapshot(self, hostname=os.uname()[1], result):
+        
+        return {"method": "update_instance_state", 
+                "args": {"hostname": hostname, 
+                         "state": result }}
+        
+    def extract_tar_file(self, dest_path, tar_name):
+        try:
+            with tarfile.open(tar_name, 'r:gz') as tar_file:
+                tar_file.extractall(dest_path)
+                return True
+        except Exception as tarfile_exception:
+            LOG.error('tar/compress snapshot failed somehow: %s',
+                tarfile_exception)
+            return False
     
     def apply_db_snapshot(self, uri, st_user, st_key, st_auth):
         """ stop mysql server """
-        if self.stop_database('') !=0:
+        if not self.stop_database():
             return ResultState.FAILED
+        
         """ push the current data to history folder """
+        try:
+            os.system('mv /var/lib/mysql /var/lib/mysql.old')
+            os.system('mkdir /var/lib/mysql')
+        except os.error:
+            LOG.error('remove historical data encounter errors: %s', os.error)
+            
+        """ parse the uri to get the swift container and object """
+        paras = string.split(uri, '/')
+        container_name = paras[0]
+        snapshot_name = paras[1]
+        LOG.debug('passed in swift container: %s and snapshot name: %s', (container_name, snapshot_name))
+        
+        
         """ download snapshot from swift """
+        opts = {'auth' : st_auth,
+                    'user' : st_user,
+                    'key' : st_key,
+                    'snet' : False,
+                    'prefix' : '',
+                    'auth_version' : '1.0'}
+        
+        try:
+            cont = swift.st_get_container(opts, container_name)
+            if len(cont) == 0:
+                LOG.error('target swift container is empty')
+                result = self.get_response_body_for_apply_snapshot(ResultState.FAILED)
+                LOG.debug('return message body: %s', result)
+                return result
+            swift.st_download(opts, container_name, snapshot_name)
+            
+        except (swift.ClientException, HTTPException, socket.error), err:
+            LOG.error('Failed to download snapshot from swift: %s', err)
+            result = self.get_response_body_for_apply_snapshot(ResultState.FAILED)
+            LOG.debug('return message body: %s', result)
+            return result
+        
         """ decompress snapshot """
+        if not self.extract_tar_file('/var/lib/mysql', snapshot_name):
+            return self.get_response_body_for_apply_snapshot(ResultState.FAILED)
+        
         """ restart mysql """
+        if not self.start_database():
+            return ResultState.FAILED
         
 def main():
     """ main program """
