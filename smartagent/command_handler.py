@@ -351,20 +351,20 @@ class MysqlCommandHandler:
         try:
             proc = subprocess.Popen(inno_backup_cmd, shell=True)
         except (OSError, ValueError) as ex_oserror:
-            LOG.error('popen exception caught: %s', ex_oserror)
+            LOG.error('popen exception caught for create db backup: %s', ex_oserror)
         except Exception as ex:
-            LOG.error('popen exception caught: %s', ex)
+            LOG.error('popen exception caught for create db backup: %s', ex)
         else:
             if self.check_process(proc) != 'normal':
                 LOG.error('create snapshot failed somehow')
-                return self.get_response_body(container,
+                return self.get_response_body_for_create_snapshot(container,
                     path_specifier,
                     ResultState.FAILED)
         
         result = self.keyword_checker(keyword_to_check, log_path)
         if result != ResultState.SUCCESS:
             LOG.error('snapshot is not ready for preparation')
-            return self.get_response_body(container,
+            return self.get_response_body_for_create_snapshot(container,
                 path_specifier,
                 ResultState.FAILED)
 
@@ -377,18 +377,18 @@ class MysqlCommandHandler:
         try:
             proc = subprocess.Popen(inno_prepare_cmd, shell=True)
         except (OSError, ValueError) as ex_oserror:
-            LOG.error('popen exception caught: %s', ex_oserror)
+            LOG.error('popen exception caught for prepare db snapshot: %s', ex_oserror)
         except Exception as ex:
-            LOG.error('popen exception caught: %s', ex)
+            LOG.error('popen exception caught for prepare db snapshot: %s', ex)
         else:
             if self.check_process(proc) != 'normal':
                 LOG.error('preparation failed somehow')
-                return self.get_response_body(container, path_specifier, ResultState.FAILED)
+                return self.get_response_body_for_create_snapshot(container, path_specifier, ResultState.FAILED)
             
         result = self.keyword_checker(keyword_to_check, log_path)
         if result != ResultState.SUCCESS:
             LOG.error('preparation encounter exceptions or errors')
-            return self.get_response_body(container,
+            return self.get_response_body_for_create_snapshot(container,
                 path_specifier,
                 ResultState.FAILED)
         
@@ -397,7 +397,7 @@ class MysqlCommandHandler:
             tar_result = self.create_tar_file(path, path_specifier)
             LOG.debug('tar result: %s', tar_result)
             if tar_result == ResultState.FAILED:
-                return self.get_response_body(container,
+                return self.get_response_body_for_create_snapshot(container,
                     path_specifier,
                     ResultState.FAILED,
                     self.get_snapshot_size(tar_result))
@@ -417,13 +417,13 @@ class MysqlCommandHandler:
                     swift.st_create_container(opts, container)
                 swift.st_upload(opts, container, tar_result)
             except (swift.ClientException, HTTPException, socket.error), err:
-                LOG.error('Failed to create the container: %s', err)
-                return self.get_response_body(container,
+                LOG.error('Failed to upload snapshot to swift: %s', err)
+                return self.get_response_body_for_create_snapshot(container,
                     path_specifier,
                     ResultState.FAILED,
                     self.get_snapshot_size(tar_result))
             else:
-                response_body = self.get_response_body(container,
+                response_body = self.get_response_body_for_create_snapshot(container,
                     path_specifier,
                     ResultState.SUCCESS,
                     self.get_snapshot_size(tar_result))
@@ -440,8 +440,6 @@ class MysqlCommandHandler:
     
     def restart_database(self):
         """ This restarts MySQL for reading conf changes"""
-        if self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=3):
-            self.stop_database()
         try: 
             proc = subprocess.call("sudo service mysql restart", shell=True)
         except (OSError, ValueError) as ex_oserror:
@@ -459,8 +457,6 @@ class MysqlCommandHandler:
 
     def stop_database(self):
         """ This stop MySQL """
-        if not self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=3):
-            return True
         try:
             proc = subprocess.call("sudo service mysql stop", shell=True)
         except (OSError, ValueError) as ex_oserror:
@@ -477,8 +473,6 @@ class MysqlCommandHandler:
         
     def start_database(self):
         """ This start MySQL """
-        if self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=3):
-            return True
         try:
             proc = subprocess.call("sudo service mysql start", shell=True)
         except (OSError, ValueError) as ex_oserror:
