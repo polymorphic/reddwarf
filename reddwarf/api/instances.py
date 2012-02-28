@@ -16,6 +16,7 @@
 # under the License.
 
 import copy
+import logging
 import json
 from webob import exc
 
@@ -23,7 +24,7 @@ from nova import compute
 from nova import db
 from nova import exception as nova_exception
 from nova import flags
-from nova import log as logging
+#from nova import log as logging
 from nova import volume
 from nova import utils
 from nova.api.openstack import common as nova_common
@@ -45,7 +46,9 @@ from reddwarf.db import api as dbapi
 from reddwarf.guest import api as guest_api
 from reddwarf.client import osclient
 
-LOG = logging.getLogger('reddwarf.api.instances')
+logging.basicConfig()
+
+LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
 
@@ -147,15 +150,19 @@ class Controller(object):
         LOG.info("Delete Instance by ID - %s", id)
         LOG.debug("%s - %s", req.environ, req.body)
         
-        context = req.environ['nova.context']
+        #context = req.environ['nova.context']
         instance_id = dbapi.localid_from_uuid(id)
         LOG.debug("Local ID: " + str(instance_id))
         
         server_response = self.client.show(id)
-        self.client.delete(server_response.id)
+        LOG.debug("Instance %s pre-delete: %s", id, server_response)
+        
+        osclient_response = self.client.delete(server_response.id)
+        if isinstance(osclient_response, Exception):
+            return osclient_response
         server_response = self.client.show(id)
-        guest_state = self.get_guest_state_mapping([server_response.id])
-        LOG.info("Called OSClient.delete().  Response/guest state: %s - %s", server_response, guest_state)
+        #guest_state = self.get_guest_state_mapping([server_response.id])
+        LOG.info("Called OSClient.delete().  Server response: %s", server_response)
         
         if 'deleting' not in server_response.status:
             raise exception.InstanceFault("There was a problem deleting" +\
