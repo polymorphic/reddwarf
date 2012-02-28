@@ -512,7 +512,7 @@ class MysqlCommandHandler:
     def apply_db_snapshot(self, uri, st_user, st_key, st_auth):
         """ stop mysql server """
         if not self.stop_database():
-            return ResultState.FAILED
+            return self.get_response_body_for_apply_snapshot(ResultState.FAILED)
         
         """ push the current data to history folder """
         try:
@@ -557,7 +557,7 @@ class MysqlCommandHandler:
         
         """ restart mysql """
         if not self.start_database():
-            return ResultState.FAILED
+            return self.get_response_body_for_apply_snapshot(ResultState.FAILED)
         
 def main():
     """ main program """
