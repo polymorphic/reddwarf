@@ -545,7 +545,7 @@ def db_snapshot_list_by_user_and_instance(context, user_id, instance_id):
     session = get_session()
     if not session:
         session = get_session()
-    result = session.query(models.DbSnapShots).filter_by(user_id=user_id).filter_by(instance_id)
+    result = session.query(models.DbSnapShots).filter_by(user_id=user_id).filter_by(instance_uuid=instance_id)
     if not result:
         raise exception.SnapshotNotFound(snapshot_id="All snapshots for instance")
     return result
