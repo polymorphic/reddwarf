@@ -457,7 +457,7 @@ class MysqlCommandHandler:
     def stop_database(self):
         """ This stop MySQL """
         try:
-            result = subprocess.call("sudo service mysql stop", shell=True)
+            proc = subprocess.call("sudo service mysql stop", shell=True)
         except (OSError, ValueError) as ex_oserror:
             LOG.error('CALL exception caught: %s', ex_oserror)
             return ResultState.FAILED
@@ -473,7 +473,7 @@ class MysqlCommandHandler:
     def start_database(self):
         """ This start MySQL for reading conf changes"""
         try:
-            result = subprocess.call("sudo service mysql start", shell=True)
+            proc = subprocess.call("sudo service mysql start", shell=True)
         except (OSError, ValueError) as ex_oserror:
             LOG.error('CALL exception caught: %s', ex_oserror)
             return ResultState.FAILED
