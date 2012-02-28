@@ -182,8 +182,7 @@ class SmartAgent:
             # start consuming rpc messages from API Server
             self.messaging.start_consuming()
         except Exception as err:
-            LOG.error("Failed to connect to MQ due to channel not \
-            available: %s", err)
+            LOG.error("Failed to connect to MQ due to channel not available: %s", err)
             pass
 
     def create_database_instance(self, msg):

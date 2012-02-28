@@ -166,9 +166,10 @@ class MysqlCommandHandler:
        
         # Open database connection
         try:
+            LOG.debug("Executing SQL command: %s", sql_commands)
             self.persistence_agent.execute_sql_commands(sql_commands)
             result = ResultState.SUCCESS
-        except _mysql.Error as error:
+        except Exception as error:
             result = ResultState.FAILED
             LOG.error("Reset user password failed: %s", error)
         return result
