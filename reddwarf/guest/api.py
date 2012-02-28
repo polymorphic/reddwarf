@@ -137,19 +137,13 @@ class API(base.Base):
         reddwarf_dbapi.guest_status_update(instance['internal_id'], int(result))
         return result
 
-    def reset_password(self, context, id, password='hpcs'):
+    def reset_password(self, context, id, password):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
         instance = reddwarf_dbapi.instance_from_uuid(id)
         LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
         return rpc.call(context, instance['hostname'],
                 {"method": "reset_password",
                  "args": {"password": password}})
-        
-#    def restart_compute_instance(self, context, id):
-#        """Make a synchronous call to trigger smart agent for rebooting instance"""
-#        instance = reddwarf_dbapi.instance_from_uuid(id)
-#        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
-#        return {'result': 'success'}
 
     def create_snapshot(self, context, instance_id, snapshot_id, credential):
         LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)

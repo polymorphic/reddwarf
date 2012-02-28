@@ -26,6 +26,7 @@ from result_state import ResultState
 import os
 import time
 import subprocess
+import tarfile
 
 from os import environ
 import swift 
@@ -166,9 +167,10 @@ class MysqlCommandHandler:
        
         # Open database connection
         try:
+            LOG.debug("Executing SQL command: %s", sql_commands)
             self.persistence_agent.execute_sql_commands(sql_commands)
             result = ResultState.SUCCESS
-        except _mysql.Error as error:
+        except Exception as error:
             result = ResultState.FAILED
             LOG.error("Reset user password failed: %s", error)
         return result
@@ -254,134 +256,209 @@ class MysqlCommandHandler:
 #        return snapshot_size
             
     
-    def get_response_body(self, path_specifier, result, snapshot_size):
-        temp = 'mysql-backup' + '/' + path_specifier + '.tar.gz'
+    def get_response_body(self, container, path_specifier, result, snapshot_size=0):
+        #temp = 'mysql-backup' + '/' + path_specifier + '.tar.gz'
+        if result == ResultState.SUCCESS:
+            temp_file_name = '%s%s' % (os.path.join(container, path_specifier), '.tar.gz')
+        else:
+            temp_file_name = 'N/A'
+        
         return {"method": "update_snapshot_state", 
                 "args": {"sid": path_specifier, 
                          "state": result, 
-                         "storage_uri": temp, 
+                         "storage_uri": temp_file_name,
                          "storage_size": snapshot_size }}
 
-    def get_tar_file(self, path, tar_name):
+    def create_tar_file(self, path, tar_name):
         try:
-            target_name = tar_name + '.tar.gz'
-            tar = tarfile.open(target_name, 'w:gz')
-            tar.add(path)
-            tar.close()
-            target = '/root/' + target_name
+            #target_name = tar_name + '.tar.gz'
+            target_name = '%s%s' % (tar_name, '.tar.gz')
+            with tarfile.open(target_name, 'w:gz') as tar_file:
+                tar_file.add(path)
+            fully_qualified_target_name = '/root/' + target_name
 #            print os.path.exists(target)
 #            print tarfile.is_tarfile(target_name)
             
-            return target_name
+#            return target_name
         
             
 #            target = '/root/' + target_name
-#            
-#            if not os.path.exists(target):
-#                raise
-#            if not tarfile.is_tarfile(target_name):
-#                raise
-#            else:
-#                return target_name
-        except:
-            LOG.error('tar/compress snapshot failed somehow')
+            
+            if not os.path.exists(fully_qualified_target_name):
+                LOG.debug('tar file does not exist: %s',
+                    fully_qualified_target_name)
+                raise
+            if not tarfile.is_tarfile(target_name):
+                LOG.debug('tar file not an archive: %s', target_name)
+                raise
+            else:
+                return target_name
+        except Exception as tarfile_exception:
+            LOG.error('tar/compress snapshot failed somehow: %s',
+                tarfile_exception)
             return ResultState.FAILED
         
     def keyword_checker(self, keyword_to_check, log_path):
-        try: 
-            f = open(log_path, "r")
-            last_lines = f.readlines()[-1:]
+        try:
+            with open(log_path, "r") as f:
+                last_lines = f.readlines()[-1:]
         
             for line in last_lines:
                 if keyword_to_check in line:
-                    LOG.debug("innobackupex runs successfully")
+                    LOG.debug("innobackupex runs successfully; read: %s",
+                        line)
                     return ResultState.SUCCESS
                 else:
-                    LOG.error("innobackupex run failed")
+                    LOG.error("innobackupex run failed; read: %s ",
+                        line)
                     return ResultState.FAILED
         except:
-            LOG.error("log file does not exist")
+            LOG.error("log file does not exist: %s", log_path)
             
             
     def check_process(self, proc):
         status = proc.poll()
-        while status !=0:
+        iteration = 0
+        TIME_OUT = 8640 # time out after 12 hours = 60 * 60 * 12 / 5
+        
+        while status !=0 and iteration < TIME_OUT:
+            iteration = iteration + 1
             if status == None:
-                LOG.debug('subprocess is still alive')
+                LOG.debug('subprocess is still alive; iteration: %d', iteration)
                 time.sleep(5)
                 status = proc.poll()
             else:
                 LOG.error('subprocess encounter errors, exit code: %s' % status)
                 return 'error'
-        return 'normal'
+        if iteration == TIME_OUT:
+            return 'timed out'
+        else:
+            return 'normal'
     
-    # TODO: container MUST come from API! Change this.
-    def create_db_snapshot(self, path_specifier):
-        path = self.backup_path + path_specifier
-        log_home = self.backlog_path + path_specifier + '_'
-        keyword_to_check = "innobackupex: completed OK!"
+    def create_db_snapshot(self, container, path_specifier):
+        path = os.path.join(self.backup_path, path_specifier)
+        log_home = os.path.join(self.backlog_path, path_specifier)
+        keyword_to_check = "innobackupex: completed OK!"  # TODO: replace with regexp?
         
         result = None
         """ create backup snapshot first """
         
-        log_path = log_home + 'innobackupex_create.log'
+        log_path = '%s%s' % (log_home, '_innobackupex_create.log')
         inno_backup_cmd = "innobackupex --no-timestamp %s > %s 2>&1" % (path, log_path)
 
-        proc = subprocess.Popen(inno_backup_cmd, shell=True)
-
-        if self.check_process(proc) == 'error':
-            LOG.error('create snapshot failed somehow')
-            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+        try:
+            proc = subprocess.Popen(inno_backup_cmd, shell=True)
+        except (OSError, ValueError) as ex_oserror:
+            LOG.error('popen exception caught: %s', ex_oserror)
+        except Exception as ex:
+            LOG.error('popen exception caught: %s', ex)
+        else:
+            if self.check_process(proc) != 'normal':
+                LOG.error('create snapshot failed somehow')
+                return self.get_response_body(container,
+                    path_specifier,
+                    ResultState.FAILED)
         
-        result = self.keyword_checker(keyword_to_check, log_path) 
+        result = self.keyword_checker(keyword_to_check, log_path)
         if result != ResultState.SUCCESS:
             LOG.error('snapshot is not ready for preparation')
-            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+            return self.get_response_body(container,
+                path_specifier,
+                ResultState.FAILED)
 
         """ prepare the snapshot for uploading to swift """
         
-        log_path = log_home + 'innobackupex_prepare.log'
+        log_path = '%s%s' % (log_home, '_innobackupex_prepare.log')
             
         inno_prepare_cmd = "innobackupex --use-memory=1G --apply-log %s > %s 2>&1" % (path, log_path)
+
+        try:
+            proc = subprocess.Popen(inno_prepare_cmd, shell=True)
+        except (OSError, ValueError) as ex_oserror:
+            LOG.error('popen exception caught: %s', ex_oserror)
+        except Exception as ex:
+            LOG.error('popen exception caught: %s', ex)
+        else:
+            if self.check_process(proc) != 'normal':
+                LOG.error('preparation failed somehow')
+                return self.get_response_body(container, path_specifier, ResultState.FAILED)
             
-        proc_ = subprocess.Popen(inno_prepare_cmd, shell=True)
-        if self.check_process(proc_) == 'error':
-            LOG.error('preparation failed somehow')
-            return self.get_response_body(path_specifier, ResultState.FAILED, 0)
+        result = self.keyword_checker(keyword_to_check, log_path)
+        if result != ResultState.SUCCESS:
+            LOG.error('preparation encounter exceptions or errors')
+            return self.get_response_body(container,
+                path_specifier,
+                ResultState.FAILED)
         
         """ tar the entire backup folder """
-        tar_result = self.get_tar_file(path, path_specifier)
-        print tar_result
-        if tar_result == ResultState.FAILED:
-            return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
-        
-        """ start upload to swift """
-        opts = {'auth' : environ.get('ST_AUTH'),
-            'user' : environ.get('ST_USER'),
-            'key' : environ.get('ST_KEY'),
-            'snet' : False,
-            'prefix' : '',
-            'auth_version' : '1.0'}
         try:
-            swift.st_upload(opts, 'mysql-backup', tar_result)  
-        except(ClientException, HTTPException, socket.error), err:
-            LOG.error(str(err))
-            return self.get_response_body(path_specifier, ResultState.FAILED, self.get_snapshot_size(path))
-         
-        response_body = self.get_response_body(path_specifier, 
-                        ResultState.SUCCESS, 
-                        self.get_snapshot_size(tar_result))
+            tar_result = self.create_tar_file(path, path_specifier)
+            LOG.debug('tar result: %s', tar_result)
+            if tar_result == ResultState.FAILED:
+                return self.get_response_body(container,
+                    path_specifier,
+                    ResultState.FAILED,
+                    self.get_snapshot_size(tar_result))
+
+            """ start upload to swift """
+            opts = {'auth' : environ.get('ST_AUTH'),
+                    'user' : environ.get('ST_USER'),
+                    'key' : environ.get('ST_KEY'),
+                    'snet' : False,
+                    'prefix' : '',
+                    'auth_version' : '1.0'}
+
+            try:
+                cont = swift.st_get_container(opts, container)
+                if len(cont) == 0:
+                    # create container
+                    swift.st_create_container(opts, container)
+                swift.st_upload(opts, container, tar_result)
+            except (swift.ClientException, HTTPException, socket.error), err:
+                LOG.error('Failed to create the container: %s', err)
+                return self.get_response_body(container,
+                    path_specifier,
+                    ResultState.FAILED,
+                    self.get_snapshot_size(tar_result))
+            else:
+                response_body = self.get_response_body(container,
+                    path_specifier,
+                    ResultState.SUCCESS,
+                    self.get_snapshot_size(tar_result))
+        finally:  # create_tar_file
+            """ remove .tar.gz file after upload """
+            try:
+                if os.path.isfile(tar_result):
+                    os.remove(tar_result)
+            except Exception as ex:
+                LOG.error('Exception while removing tar file: %s', ex)
+
         LOG.debug(response_body)
-        
-        """ remove .tar.gz file after upload """
-        try:
-            os.remove(tar_result)
-        except:
-            print tar_result
-            print 'remove .tar.gz does not work'
-            pass
-        
         return response_body
+    
+    def restart_database(self, msg):
+        """ This restarts MySQL for reading conf changes"""
+        result = subprocess.call("sudo service mysql restart", shell=True)
+        return result
+
+    def stop_database(self, msg):
+        """ This restarts MySQL for reading conf changes"""
+        result = subprocess.call("sudo service mysql stop", shell=True)
+        return result
+    def start_database(self, msg):
+        """ This restarts MySQL for reading conf changes"""
+        result = subprocess.call("sudo service mysql start", shell=True)
+        return result
+    
+    
+    def apply_db_snapshot(self, uri, st_user, st_key, st_auth):
+        """ stop mysql server """
+        if self.stop_database('') !=0:
+            return ResultState.FAILED
+        """ push the current data to history folder """
+        """ download snapshot from swift """
+        """ decompress snapshot """
+        """ restart mysql """
         
 def main():
     """ main program """
