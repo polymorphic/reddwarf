@@ -319,7 +319,9 @@ class MysqlCommandHandler:
     def check_process(self, proc):
         status = proc.poll()
         iteration = 0
-        while status != 0:  # TODO: put upper bound and test the counter to avoid infinite loop
+        TIME_OUT = 8640 # time out after 12 hours = 60 * 60 * 12 / 5
+        
+        while status !=0 and iteration < TIME_OUT:
             iteration = iteration + 1
             if status == None:
                 LOG.debug('subprocess is still alive; iteration: %d', iteration)
@@ -328,7 +330,10 @@ class MysqlCommandHandler:
             else:
                 LOG.error('subprocess encounter errors, exit code: %s' % status)
                 return 'error'
-        return 'normal'
+        if iteration == TIME_OUT:
+            return 'timed out'
+        else:
+            return 'normal'
     
     def create_db_snapshot(self, container, path_specifier):
         path = os.path.join(self.backup_path, path_specifier)
@@ -348,7 +353,7 @@ class MysqlCommandHandler:
         except Exception as ex:
             LOG.error('popen exception caught: %s', ex)
         else:
-            if self.check_process(proc) == 'error':
+            if self.check_process(proc) != 'normal':
                 LOG.error('create snapshot failed somehow')
                 return self.get_response_body(container,
                     path_specifier,
@@ -368,15 +373,22 @@ class MysqlCommandHandler:
         inno_prepare_cmd = "innobackupex --use-memory=1G --apply-log %s > %s 2>&1" % (path, log_path)
 
         try:
-            proc_ = subprocess.Popen(inno_prepare_cmd, shell=True)
+            proc = subprocess.Popen(inno_prepare_cmd, shell=True)
         except (OSError, ValueError) as ex_oserror:
             LOG.error('popen exception caught: %s', ex_oserror)
         except Exception as ex:
             LOG.error('popen exception caught: %s', ex)
         else:
-            if self.check_process(proc_) == 'error':
+            if self.check_process(proc) != 'normal':
                 LOG.error('preparation failed somehow')
                 return self.get_response_body(container, path_specifier, ResultState.FAILED)
+            
+        result = self.keyword_checker(keyword_to_check, log_path)
+        if result != ResultState.SUCCESS:
+            LOG.error('preparation encounter exceptions or errors')
+            return self.get_response_body(container,
+                path_specifier,
+                ResultState.FAILED)
         
         """ tar the entire backup folder """
         try:
@@ -417,7 +429,7 @@ class MysqlCommandHandler:
             """ remove .tar.gz file after upload """
             try:
                 if os.path.isfile(tar_result):
-                    os.path.remove(tar_result)
+                    os.remove(tar_result)
             except Exception as ex:
                 LOG.error('Exception while removing tar file: %s', ex)
 
