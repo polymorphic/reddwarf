@@ -45,7 +45,6 @@ from reddwarf.db import api as dbapi
 from reddwarf.guest import api as guest_api
 from reddwarf.client import osclient
 
-
 LOG = logging.getLogger('reddwarf.api.instances')
 LOG.setLevel(logging.DEBUG)
 
@@ -153,7 +152,7 @@ class Controller(object):
         LOG.debug("Local ID: " + str(instance_id))
         
         server_response = self.client.show(id)
-        #self.client.delete(server_response.id)
+        self.client.delete(server_response.id)
         server_response = self.client.show(id)
         guest_state = self.get_guest_state_mapping([server_response.id])
         LOG.info("Called OSClient.delete().  Response/guest state: %s - %s", server_response, guest_state)
