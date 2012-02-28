@@ -87,7 +87,7 @@ def request_obj(url, method, body={}):
     req.headers["content-type"] = "application/json"
     return req
 
-def test_show(osclient, id):
+def get_osclient_show(osclient, id):
     response = DummyServer()
     return response
 
@@ -114,7 +114,7 @@ class InstanceApiTest(test.TestCase):
     def test_instances_delete_not_found(self):
         self.stubs.Set(nova.compute.API, "get", compute_get_exception)
         self.stubs.Set(reddwarf.client.osclient.OSClient, "delete", compute_get_osclient_not_found)
-        self.stubs.Set(reddwarf.client.osclient.OSClient, "show", test_show)
+        self.stubs.Set(reddwarf.client.osclient.OSClient, "show", get_osclient_show)
         self.stubs.Set(reddwarf.api.instances.Controller, 
                        "get_guest_state_mapping", 
                        guest_get_mapping_deleting)
@@ -125,7 +125,7 @@ class InstanceApiTest(test.TestCase):
     def test_instances_delete_unprocessable(self):
         self.stubs.Set(nova.compute.API, "get", compute_get_building)
         self.stubs.Set(reddwarf.client.osclient.OSClient, "delete", compute_get_osclient_unprocessable)
-        self.stubs.Set(reddwarf.client.osclient.OSClient, "show", test_show)
+        self.stubs.Set(reddwarf.client.osclient.OSClient, "show", get_osclient_show)
         self.stubs.Set(reddwarf.api.instances.Controller, 
                        "get_guest_state_mapping", 
                        guest_get_mapping_deleting)
@@ -138,7 +138,7 @@ class InstanceApiTest(test.TestCase):
         self.stubs.Set(nova.compute.API, "delete", compute_delete)
         self.stubs.Set(nova.compute.API, "get", compute_get_building)
         self.stubs.Set(reddwarf.client.osclient.OSClient, "delete", compute_get_osclient_accepted)
-        self.stubs.Set(reddwarf.client.osclient.OSClient, "show", test_show)
+        self.stubs.Set(reddwarf.client.osclient.OSClient, "show", get_osclient_show)
         self.stubs.Set(reddwarf.api.instances.Controller, 
                        "get_guest_state_mapping", 
                        guest_get_mapping_deleting)
