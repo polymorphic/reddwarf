@@ -209,14 +209,19 @@ class Controller(object):
         local_id = str(server_resp.id)
 
         LOG.info("Created server with uuid: " + instance_id + " and local id: " + local_id)
-        
-        # Need to assign public IP, but also need to wait for Networking
-        self.client.assign_public_ip(local_id)
 
         dbapi.instance_create(context.user_id, context.project_id, instance_name, server_resp)
-
+        
+        # Need to assign public IP, but also need to wait for Networking
+        ip = self.client.assign_public_ip(local_id)
+        
+        dbapi.instance_set_public_ip(instance_id, ip)
         dbapi.guest_status_create(local_id)
 
+        # Nova doesn't populate the public IP in the server Response
+        server_resp.accessIPv4 = ip
+        server_resp.name = instance_name
+        
         guest_state = self.get_guest_state_mapping([local_id])
         instance = self.view.build_single(server_resp, req,
             guest_state, create=True)

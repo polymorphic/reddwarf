@@ -148,6 +148,19 @@ def instance_create(user_id, project_id, instance_name, server):
         instance.save(session=session)
     
     return instance
+
+def instance_set_public_ip(instance_id, public_ip):
+    """Updates an instance record with an IP"""
+    LOG.debug("instance_set_public_ip id = %s" % str(instance_id))
+    
+    from nova.db.sqlalchemy import models as nova_models
+
+    session = get_session()
+    with session.begin():
+        session.query(nova_models.Instance).\
+                filter_by(uuid=instance_id).\
+                update({'access_ip_v4': public_ip,
+                        'updated_at': datetime.datetime.utcnow()})
     
 @require_admin_context
 def show_instances_on_host(context, id):

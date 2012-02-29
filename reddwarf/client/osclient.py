@@ -19,14 +19,14 @@ Created on Feb 1, 2012
 '''
 from novaclient.v1_1 import client
 from novaclient.v1_1 import servers
-from novaclient import exceptions
+from reddwarf import exception 
 from nova import flags
 from nova import log as logging
 import eventlet
 
 FLAGS = flags.FLAGS
 
-LOG = logging.getLogger('reddwarf.client.osclient')
+LOG = logging.getLogger(__name__)
 
 class OSClient(object):
     '''
@@ -80,19 +80,22 @@ class OSClient(object):
             ip = floating_ip.ip
         
         LOG.debug("Found IP to Assign: %s" + str(ip) )
-        
-        success = False
-        while(success is False):
+
+        # Fail after 5 attempts
+        success = False        
+        for i in range(5):
             try:
+                LOG.debug('Assign public IP, Attempt %d', i)
                 self.client.servers.add_floating_ip(id, ip)
                 success = True
+                break
             except Exception:
                 sucess = False
-                LOG.debug('Sleeping')
                 eventlet.sleep(1)
-                LOG.debug('Awake')
-                
+
+        if success is False:
+            raise exception.InstanceFault()
             
-        
+        return ip
         
         
