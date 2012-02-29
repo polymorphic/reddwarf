@@ -241,18 +241,6 @@ class SmartAgent:
         result = self.handler.create_db_snapshot(msg['args']['sid'])
         self.messaging.phone_home(result)
 
-    def list_database_snapshots(self, msg):
-        """ This will call the method that returns database snapshots """
-        LOG.debug('Functionality not implemented')
-        result = None
-        return result
-
-    def delete_database_snapshot(self, msg):
-        """ This will call the method that deletes database snapshot """
-        LOG.debug('Functionality not implemented')
-        result = None
-        return result
-
     def check_status(self):
         """ This calls the method to check MySQL's running status """
         if self.checker.check_if_running(sleep_time_seconds=3,
@@ -330,10 +318,6 @@ class SmartAgent:
             result = self.reset_password(msg)
         elif method == 'create_snapshot':
             result = self.take_database_snapshot(msg)
-        elif method == 'list_snapshots':
-            result = self.list_database_snapshots(msg)
-        elif method == 'delete_snapshot':
-            result = self.delete_database_snapshot(msg)
         elif method == 'check_mysql_status':
             result = self.check_status()
         elif method == 'check_system_status':
