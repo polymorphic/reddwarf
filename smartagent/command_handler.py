@@ -441,7 +441,7 @@ class MysqlCommandHandler:
     def restart_database(self):
         """ This restarts MySQL for reading conf changes"""
         try: 
-            proc = subprocess.call("sudo service mysql restart", shell=True)
+            proc = subprocess.Popen("sudo service mysql restart", shell=True)
         except (OSError, ValueError) as ex_oserror:
             LOG.error('CALL exception caught: %s', ex_oserror)
             return ResultState.FAILED
@@ -452,13 +452,15 @@ class MysqlCommandHandler:
             if self.check_process(proc) != 'normal':
                 LOG.error('restart mysql failed somehow')
                 return ResultState.FAILED
-            return self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
+            return self.checker.check_if_running(sleep_time_seconds=2, number_of_checks=2)
     
 
     def stop_database(self):
         """ This stop MySQL """
+        print 'process reached here'
         try:
-            proc = subprocess.call("sudo service mysql stop", shell=True)
+            proc = subprocess.Popen("sudo service mysql stop", shell=True)
+            print proc
         except (OSError, ValueError) as ex_oserror:
             LOG.error('CALL exception caught: %s', ex_oserror)
             return ResultState.FAILED
@@ -469,12 +471,12 @@ class MysqlCommandHandler:
             if self.check_process(proc) != 'normal':
                 LOG.error('restart mysql failed somehow')
                 return ResultState.FAILED
-            return not self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
+            return not self.checker.check_if_running(sleep_time_seconds=2, number_of_checks=2)
         
     def start_database(self):
         """ This start MySQL """
         try:
-            proc = subprocess.call("sudo service mysql start", shell=True)
+            proc = subprocess.Popen("sudo service mysql start", shell=True)
         except (OSError, ValueError) as ex_oserror:
             LOG.error('CALL exception caught: %s', ex_oserror)
             return ResultState.FAILED
@@ -485,12 +487,12 @@ class MysqlCommandHandler:
             if self.check_process(proc) != 'normal':
                 LOG.error('restart mysql failed somehow')
                 return ResultState.FAILED
-            return self.checker.check_if_running(sleep_time_seconds=3, number_of_checks=5)
+            return self.checker.check_if_running(sleep_time_seconds=2, number_of_checks=2)
         
-    def get_response_body_for_apply_snapshot(self, hostname=os.uname()[1], result):
+    def get_response_body_for_apply_snapshot(self, result):
         
         return {"method": "update_instance_state", 
-                "args": {"hostname": hostname, 
+                "args": {"hostname": os.uname()[1], 
                          "state": result }}
         
     def extract_tar_file(self, dest_path, tar_name):
@@ -519,7 +521,7 @@ class MysqlCommandHandler:
         paras = string.split(uri, '/')
         container_name = paras[0]
         snapshot_name = paras[1]
-        LOG.debug('passed in swift container: %s and snapshot name: %s', (container_name, snapshot_name))
+        LOG.debug('passed in swift container: %s and snapshot name: %s', container_name, snapshot_name)
         
         
         """ download snapshot from swift """
@@ -558,7 +560,9 @@ def main():
     handler = MysqlCommandHandler()
 #    handler.reset_user_password(this_variable_should_be_username_of_tenant, 'hpcs')
     # TODO: make sure to get this from API!
-    handler.create_db_snapshot(container='mysql-backup-dbasdemo', path_specifier='uuid2')
+    #handler.create_db_snapshot(container='mysql-backup-dbasdemo', path_specifier='uuid2')
+    handler.apply_db_snapshot('mysql-backup-dbasdemo/uuid2.tar.gz', 'st_user', 'st_key', 'st_auth')
+
 
 if __name__ == '__main__':
     main()
