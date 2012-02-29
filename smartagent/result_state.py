@@ -25,10 +25,10 @@ class ResultState:
     FAILED = 0x03  # 100
 
     _STATE_MAP = {
-        NOSTATE: 'Pending',
-        RUNNING: 'Running',
-        SUCCESS: 'Success',
-        FAILED: 'Failed',
+        NOSTATE: 'pending',
+        RUNNING: 'running',
+        SUCCESS: 'success',
+        FAILED: 'failed',
     }
 
     @staticmethod
