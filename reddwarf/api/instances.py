@@ -32,7 +32,7 @@ from nova.api.openstack import faults
 from nova.api.openstack import servers
 from nova.api.openstack import wsgi
 from nova.compute import power_state
-from nova.compute import vm_states
+from smartagent import result_state
 from nova.notifier import api as notifier
 
 from novaclient.v1_1 import servers as novaclientservers
@@ -268,7 +268,7 @@ class Controller(object):
         self._validate_password(body)
         context = req.environ['nova.context']
         result = self.guest_api.reset_password(context, instance_id, body['password'])
-        return {'Response': str(result)}
+        return {'Response': result_state.ResultState.name(result)}
 
     @staticmethod
     def get_guest_state_mapping(id_list):

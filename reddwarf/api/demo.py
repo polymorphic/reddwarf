@@ -21,6 +21,7 @@ from reddwarf import exception
 from reddwarf.api import common
 from reddwarf.guest import api as guest_api
 from reddwarf.client import credential
+from smartagent import result_state
 from webob import exc
 
 
@@ -52,7 +53,7 @@ class Controller(object):
         ctxt = context.get_admin_context()
         try:
             result = self.guest_api.check_mysql_status(ctxt, instance_id)
-            return {'Response': str(result)}
+            return {'Response': result_state.ResultState.name(result)}
         except Exception as err:
             LOG.error(err)
             raise exception.InstanceFault("Error triggering remote smart agent")
