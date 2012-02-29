@@ -267,10 +267,12 @@ class Controller(object):
         password = utils.generate_password()
         context = req.environ['nova.context']
         result = self.guest_api.reset_password(context, instance_id, password)
-        if (result == result_state.ResultState.FAILED):
-            return {'response': result_state.ResultState.name(result)}
-        else:
+        if result == result_state.ResultState.SUCCESS:
             return {'password': password}
+        else:
+            LOG.debug("Smart Agent failed to reset password (RPC response: '%s').",
+                result_state.ResultState.name(result))
+            return exc.HTTPInternalServerError("Smart Agent failed to reset password.")
 
     @staticmethod
     def get_guest_state_mapping(id_list):
