@@ -35,18 +35,22 @@ authenticated = False
 auth_token = ""
 object_url = ""
 
+def setupAuthentication():
+    result = swifty.get_auth(AUTH_URL, AUTH_USERNAME, AUTH_PASSWORD, False, "2.0")
+
+    object_url = result[0]
+    auth_token = result[1]
+    authenticated = True
+    
+    return auth_token, object_url, authenticated
 
 class HPCSTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        result = swifty.get_auth(AUTH_URL, AUTH_USERNAME, AUTH_PASSWORD, False, "2.0")
-        
         global auth_token, object_url, authenticated
-        object_url = result[0]
-        auth_token = result[1]
-        authenticated = True
-        
+        auth_token, object_url, authenticated = setupAuthentication()
+
         print "Setting up the authentication"
         
     
@@ -57,17 +61,12 @@ class HPCSTest(unittest.TestCase):
     def cleanUpContainer(self):
         swifty.delete_container(object_url, auth_token, TEST_CONTAINER)
 
-    
+
     def test_authenticate(self):
         """Test to authenticate a user"""
         print("Testing authentication")
         
         result = swifty.get_auth(AUTH_URL, AUTH_USERNAME, AUTH_PASSWORD, False, "2.0")
-        
-        global auth_token, object_url, authenticated
-        object_url = result[0]
-        auth_token = result[1]
-        authenticated = True
         
         print result
         #print type(result)
