@@ -12,9 +12,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
+
 import os
 import unittest
 import sys
+
+cwd = os.getcwd()
+os.chdir("..")
+sys.path.append(os.getcwd())
 
 import swiftapi.swift as swifty
 
