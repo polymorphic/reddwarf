@@ -186,20 +186,6 @@ class Controller(object):
         # This should be fetched from Flags, image should contain mysqld and agent
         image_id = FLAGS.default_image
         flavor_ref = FLAGS.default_instance_type
-
-        # Create the Volume before hand
-        # volume_ref = self.create_volume(context, body)
-        # # Setup Security groups
-        # self._setup_security_groups(context,
-        # FLAGS.default_firewall_rule_name,
-        # FLAGS.default_guest_mysql_port)
-        #
-        # server = self._create_server_dict(body['instance'],
-        # volume_ref['id'],
-        # FLAGS.reddwarf_mysql_data_dir)
-
-        # Add any extra data that's required by the servers api
-        #server_req_body = {'server':server}
         
         # Generate a UUID and set as the hostname, to guarantee unique
         # routing key for Agent
@@ -207,11 +193,6 @@ class Controller(object):
         
         server_resp = self._try_create_server(req, host_name, image_id, flavor_ref)
         
-        #LOG.debug("Server_Response type: " + server_resp.getid(server_resp))
-        from inspect import getmembers
-        for name,thing in getmembers(server_resp):
-            LOG.debug(" ----- " + str(name) + " : " + str(thing) )
-
         instance_id = server_resp.uuid
         local_id = str(server_resp.id)
 
@@ -233,9 +214,6 @@ class Controller(object):
         instance = self.view.build_single(server_resp, req,
             guest_state, create=True)
 
-        # add the volume information to response
-        LOG.debug("adding the volume information to the response...")
-        #instance['volume'] = {'size': volume_ref['size']}
         return { 'instance': instance }
     
     def restart_compute_instance(self, req, instance_id):
@@ -298,11 +276,13 @@ Separating this so we could do retries in the future and other
 processing of the result etc.
 """
         try:
-
+            # Default SecurityGroup to use for instances
+            sec_group = FLAGS.default_firewall_rule_name
+            
             # files = { '/home/ubuntu/agent.conf':'rabbit_host: 1.1.1.1\nsnapshot_id: abc111'}
             files = None
             
-            server = self.client.create(instance_name, image_id, flavor_ref, files, 'hpdefault',['default'])
+            server = self.client.create(instance_name, image_id, flavor_ref, files, 'hpdefault',[sec_group])
 
             #server = self.server_controller.create(req, body)
             if not server or isinstance(server, faults.Fault)\

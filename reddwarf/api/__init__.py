@@ -45,8 +45,11 @@ FLAGS = flags.FLAGS
 
 flags.DEFINE_integer('default_guest_mysql_port', 3306,
                      'Default port used for guest mysql instance')
+#flags.DEFINE_string('default_firewall_rule_name',
+#                    'tcp_%s' %  FLAGS.default_guest_mysql_port,
+#                    'Default firewall rule name used for guest instances')
 flags.DEFINE_string('default_firewall_rule_name',
-                    'tcp_%s' %  FLAGS.default_guest_mysql_port,
+                    'mysql',
                     'Default firewall rule name used for guest instances')
 flags.DEFINE_string('nova_api_version', '1.1',
                     'The default nova api version for reddwarf')
