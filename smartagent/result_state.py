@@ -18,16 +18,16 @@
 
 
 class ResultState:
-    """States of operation result""" 
-    NOSTATE = 0x00 # 000
+    """States of operation result"""
+    SUCCESS = 0x00 # 000
     RUNNING = 0x01 # 001
-    SUCCESS = 0x02 # 010
-    FAILED = 0x03  # 100
+    NOSTATE = 0x02 # 010
+    FAILED = 0x03 # 100
 
     _STATE_MAP = {
-        NOSTATE: 'pending',
-        RUNNING: 'running',
         SUCCESS: 'success',
+        RUNNING: 'running',
+        NOSTATE: 'pending',
         FAILED: 'failed',
     }
 
