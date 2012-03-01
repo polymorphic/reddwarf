@@ -150,10 +150,6 @@ class Controller(object):
         LOG.info("Delete Instance by ID - %s", id)
         LOG.debug("%s - %s", req.environ, req.body)
         
-        #context = req.environ['nova.context']
-        instance_id = dbapi.localid_from_uuid(id)
-        LOG.debug("Local ID: " + str(instance_id))
-        
         server_response = self.client.show(id)
         LOG.debug("Instance %s pre-delete: %s", id, server_response)
         
@@ -168,7 +164,8 @@ class Controller(object):
             raise exception.InstanceFault("There was a problem deleting" +\
                 " this instance.  If this problem persists, please" +\
                 " contact Customer Support.")
-
+        dbapi.instance_delete(id)
+        #dbapi.guest_status_delete(instance_id)
         return exc.HTTPAccepted()
 
 
@@ -281,8 +278,9 @@ processing of the result etc.
             
             # files = { '/home/ubuntu/agent.conf':'rabbit_host: 1.1.1.1\nsnapshot_id: abc111'}
             files = None
-            
-            server = self.client.create(instance_name, image_id, flavor_ref, files, 'hpdefault',[sec_group])
+            userdata = None
+
+            server = self.client.create(instance_name, image_id, flavor_ref, files, 'hpdefault', [sec_group], userdata)
 
             #server = self.server_controller.create(req, body)
             if not server or isinstance(server, faults.Fault)\

@@ -18,6 +18,7 @@ from nova import log as logging
 from nova.api.openstack import wsgi
 from nova.notifier import api as notifier
 from nova import utils
+from nova import flags
 
 from reddwarf import exception
 from reddwarf.api import common
@@ -32,6 +33,8 @@ import urlparse
 
 LOG = logging.getLogger('reddwarf.api.snapshots')
 LOG.setLevel(logging.DEBUG)
+
+FLAGS = flags.FLAGS
 
 def publisher_id(host=None):
     return notifier.publisher_id("reddwarf-api", host)
@@ -91,11 +94,11 @@ class Controller(object):
         container, file = uri.split('/',2)
         
         LOG.debug("Deleting from Container: %s - File: %s", container, file)
-        
+
         ## TODO Move these to database!
-        ST_AUTH="https://region-a.geo-1.identity.hpcloudsvc.com:35357/auth/v1.0"
-        ST_USER="21343820976858:dbas@hp.com"
-        ST_KEY="Dbas-312"
+        ST_AUTH=FLAGS.swiftclient_auth_url
+        ST_USER=FLAGS.swiftclient_user
+        ST_KEY=FLAGS.swiftclient_key
 
         opts = {'auth' : ST_AUTH,
             'user' : ST_USER,

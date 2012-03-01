@@ -42,9 +42,9 @@ class OSClient(object):
         
         self.client = client.Client(username,password,project_id, auth_url, region_name=region_name)
         
-    def create(self, hostname, image, flavor, files, key_name, security_groups):
+    def create(self, hostname, image, flavor, files, key_name, security_groups, userdata):
         LOG.debug("OSClient - create()")
-        return self.client.servers.create(hostname, image, flavor, files=files, key_name=key_name, security_groups=security_groups)
+        return self.client.servers.create(hostname, image, flavor, files=files, key_name=key_name, security_groups=security_groups, userdata=userdata)
     
     def delete (self, id):
         LOG.debug("OSClient - delete()")
