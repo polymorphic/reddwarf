@@ -152,8 +152,8 @@ class API(base.Base):
                  {"method": "create_snapshot",
                   "args": {"sid": snapshot_id,
                            "credential": {"user": credential.user,
-                                          "password": credential.password,
-                                          "tenant_id": credential.tenant_id}}
+                                          "key": credential.key,
+                                          "auth": credential.auth}}
                   })
 
     def apply_snapshot(self, context, instance_id, snapshot_id, credential):
@@ -161,11 +161,11 @@ class API(base.Base):
         instance = reddwarf_dbapi.instance_from_uuid(instance_id)
         snapshot = reddwarf_dbapi.db_snapshot_get(snapshot_id)
         rpc.cast(context, instance['hostname'],
-                 {"method": "apply_db_snapshot",
-                  "args": {"snapshot_uri": snapshot['storage_uri'],
+                 {"method": "apply_snapshot",
+                  "args": {"storage_path": snapshot['storage_uri'],
                            "credential": {"user": credential.user,
-                                          "password": credential.password,
-                                          "tenant_id": credential.tenant_id}}})
+                                          "key": credential.key,
+                                          "auth": credential.auth}}})
 
 
 class PhoneHomeMessageHandler():
@@ -188,19 +188,19 @@ class PhoneHomeMessageHandler():
     def _validate(self, msg):
         """Validate that the request has all the required parameters"""
         if not msg:
-            raise exception.BadRequest("Phone home message is empty.")
+            raise exception.NotFound("Phone home message is empty.")
         if not msg['method']:
-            raise exception.BadRequest("Required element/key 'method' was not specified in phone home message.")
+            raise exception.NotFound("Required element/key 'method' was not specified in phone home message.")
         if not msg['args']:
-            raise exception.BadRequest("Required element/key 'args' was not specified in phone home message.")
+            raise exception.NotFound("Required element/key 'args' was not specified in phone home message.")
 
     def update_instance_state(self, msg):
         """Update instance state in guest_status table."""
         # validate input message
         if not msg['args']['hostname']:
-            raise exception.BadRequest("Required element/key 'hostname' was not specified in phone home message.")
+            raise exception.NotFound("Required element/key 'hostname' was not specified in phone home message.")
         if not msg['args']['state']:
-            raise exception.BadRequest("Required element/key 'state' was not specified in phone home message.")
+            raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
         # update DB
         instance = reddwarf_dbapi.instance_from_hostname(msg['args']['hostname'])
         state = int(msg['args']['state'])
@@ -211,13 +211,13 @@ class PhoneHomeMessageHandler():
         """Update snapshot state in database_snapshots table."""
         # validate input message
         if not msg['args']['sid']:
-            raise exception.BadRequest("Required element/key 'sid' was not specified in phone home message.")
+            raise exception.NotFound("Required element/key 'sid' was not specified in phone home message.")
         if '' == msg['args']['state']:
-            raise exception.BadRequest("Required element/key 'state' was not specified in phone home message.")
+            raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
         if not msg['args']['storage_uri']:
-            raise exception.BadRequest("Required element/key 'storage_uri' was not specified in phone home message.")
+            raise exception.NotFound("Required element/key 'storage_uri' was not specified in phone home message.")
         if '' == msg['args']['storage_size']:
-            raise exception.BadRequest("Required element/key 'storage_size' was not specified in phone home message.")
+            raise exception.NotFound("Required element/key 'storage_size' was not specified in phone home message.")
         # update DB
         reddwarf_dbapi.db_snapshot_update(msg['args']['sid'],
                                           msg['args']['state'],

@@ -53,7 +53,8 @@ class Controller(object):
         ctxt = context.get_admin_context()
         # dummy snapshot ID and credential for demo
         sid = "1234"
-        cred = credential.Credential("joe", "ab1234", "999")
+        cred = credential.SwiftCredential('user', 'key', 'auth')
+
         try:
             self.guest_api.create_snapshot(ctxt, instance_id, sid, cred)
             return exc.HTTPAccepted()
@@ -66,7 +67,8 @@ class Controller(object):
         ctxt = context.get_admin_context()
         # dummy snapshot ID and credential for demo
         sid = "1234"
-        cred = credential.Credential("joe", "ab1234", "999")
+        cred = credential.SwiftCredential('user', 'key', 'auth')
+
         try:
             self.guest_api.apply_snapshot(ctxt, instance_id, sid, cred)
             return exc.HTTPAccepted()

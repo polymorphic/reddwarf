@@ -134,7 +134,7 @@ class Controller(object):
         
         # Add record to database
         db_snapshot = dbapi.db_snapshot_create(context, values)
-        cred = credential.Credential('user', 'password', 'tenant')
+        cred = credential.SwiftCredential('user', 'key', 'auth')
         self.guestapi.create_snapshot(context, instance_id, uuid, cred)
         snapshot = self.view.build_single(db_snapshot, req)
         return exc.HTTPCreated({ 'snapshot' : snapshot })

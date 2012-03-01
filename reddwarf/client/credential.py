@@ -3,11 +3,12 @@ Created on Feb 22, 2012
 
 @author: vipul
 '''
-class Credential:
-    
-    def __init__(self, user, password, tenant_id):
+class SwiftCredential:
+    """Credential to access Swift Storage contains
+       user, key and authentication endpoint."""
+    def __init__(self, user, key, auth):
         self.user = user
-        self.password = password
-        self.tenant_id = tenant_id
+        self.key = key
+        self.auth = auth
         
         

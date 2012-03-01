@@ -411,9 +411,9 @@ def instance_from_hostname(hostname):
         LOG.debug("No such instance found.")
         return None
 
-    # validate hostname and internal_id
-    if not result["hostname"]:
-        LOG.error("hostname not found for Host %s" % hostname)
+    # validate uuid and internal_id
+    if not result["uuid"]:
+        LOG.error("uuid not found for Host %s" % hostname)
         raise exception.InstanceFault("hostname not found for Host %s" % hostname)
     if not result["internal_id"]:
         LOG.error("internal_id not found for Host %s" % hostname)
