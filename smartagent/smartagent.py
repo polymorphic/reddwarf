@@ -181,10 +181,14 @@ class SmartAgent:
         try:
             self.messaging.phone_home(message)
             LOG.debug('Initial phone home message sent: %s', message)
-            # start consuming rpc messages from API Server
-            self.messaging.start_consuming()
         except Exception as err:
             LOG.error("Failed to connect to MQ due to channel not available: %s", err)
+            pass
+        # start consuming rpc messages from API Server
+        try:
+            self.messaging.start_consuming()
+        except Exception as err:
+            LOG.error("Error processing RPC request: %s", err)
             pass
 
     def create_database_instance(self, msg):
