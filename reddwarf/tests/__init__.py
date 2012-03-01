@@ -17,14 +17,21 @@ import shutil
 from nova.api import openstack
 from nova import flags
 from nova.db import migration as nova_migration
+from sqlalchemy import MetaData
+from reddwarf.db import models
 
+from nova.db.sqlalchemy import session
+import unittest
+import urlparse
 
+import mox
+import inspect
+from sqlalchemy.orm import mapper
 database_file = "reddwarf_test.sqlite"
 clean_db = "clean.sqlite"
 reddwarf_db_version = 7
 
 FLAGS = flags.FLAGS
-
 
 def setup():
     FLAGS.Reset()
@@ -37,3 +44,64 @@ def setup():
         os.remove(clean_db)
     nova_migration.db_sync()
     shutil.copy(database_file, clean_db)
+
+class TestCase(unittest.TestCase):
+    def setUp(self):
+        #maxDiff=None ensures diff output of assert methods are not truncated
+        self.maxDiff = None
+        self.mock = mox.Mox()
+        super(TestCase, self).setUp()
+
+    def tearDown(self):
+        self.mock.UnsetStubs()
+        self.mock.VerifyAll()
+        super(TestCase, self).tearDown()
+
+    def assertIn(self, expected, actual):
+        """This is similar to assertIn in python 2.7"""
+        self.assertTrue(expected in actual,
+            "{0} does not contain {1}".format(repr(actual), repr(expected)))
+
+    def assertNotIn(self, expected, actual):
+        self.assertFalse(expected in actual,
+            "{0} does contains {1}".format(repr(actual), repr(expected)))
+
+    def assertIsNone(self, actual):
+        """This is similar to assertIsNone in python 2.7"""
+        self.assertEqual(actual, None)
+
+    def assertIsNotNone(self, actual):
+        """This is similar to assertIsNotNone in python 2.7"""
+        self.assertNotEqual(actual, None)
+
+    def assertItemsEqual(self, expected, actual):
+        self.assertEqual(sorted(expected), sorted(actual))
+
+    def assertModelsEqual(self, expected, actual):
+        self.assertEqual(sorted(expected, key=lambda model: model.id),
+                         sorted(actual, key=lambda model: model.id))
+
+    def assertErrorResponse(self, response, error_type, expected_error):
+        self.assertEqual(response.status_int, error_type().code)
+        self.assertIn(expected_error, response.body)
+        
+class DBTestCase(TestCase):
+    def setUp(self):
+        super(DBTestCase, self).setUp()
+        FLAGS.Reset()
+        FLAGS['sql_connection'].SetDefault("sqlite:///:memory:")
+        
+        metaModel = []
+        for name, obj in inspect.getmembers(models):
+            if inspect.isclass(obj):
+                for c in inspect.getmro(obj):
+                    if "nova.db.sqlalchemy.models" == c.__module__ and "NovaBase" == c.__name__ and obj.__name__ != "NovaBase":
+                        metaModel.append(obj)
+        
+        engine = session.get_engine()
+        for model in metaModel:
+            model.metadata.bind = engine
+            print model.metadata.create_all()
+            print model.__table__.select().execute()
+        
+        
