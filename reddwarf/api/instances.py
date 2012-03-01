@@ -32,7 +32,7 @@ from nova.api.openstack import faults
 from nova.api.openstack import servers
 from nova.api.openstack import wsgi
 from nova.compute import power_state
-from nova.compute import vm_states
+from smartagent import result_state
 from nova.notifier import api as notifier
 
 from novaclient.v1_1 import servers as novaclientservers
@@ -261,14 +261,18 @@ class Controller(object):
 
         return exc.HTTPAccepted()
 
-    def reset_db_password(self, req, body, instance_id):
+    def reset_db_password(self, req, instance_id):
         """Resets DB password on remote instance"""     
         LOG.info("Resets DB password on Instance %s", instance_id)
-        LOG.debug("%s - %s", req.environ, body)        
-        self._validate_password(body)
+        password = utils.generate_password()
         context = req.environ['nova.context']
-        result = self.guest_api.reset_password(context, instance_id, body['password'])
-        return {'Response': str(result)}
+        result = self.guest_api.reset_password(context, instance_id, password)
+        if result == result_state.ResultState.SUCCESS:
+            return {'password': password}
+        else:
+            LOG.debug("Smart Agent failed to reset password (RPC response: '%s').",
+                result_state.ResultState.name(result))
+            return exc.HTTPInternalServerError("Smart Agent failed to reset password.")
 
     @staticmethod
     def get_guest_state_mapping(id_list):
@@ -427,13 +431,6 @@ Here's how it would look in iptables.
             LOG.error("Create Instance Required field(s) - %s" % e)
             raise exception.BadRequest("Required element/key - %s was not "
                                        "specified" % e)
-
-    def _validate_password(self, body):
-        """Validate that the request has the required parameters"""
-        if not body:
-            raise exception.BadRequest("Reset Password has empty request body.")
-        if not body['password']:
-            raise exception.BadRequest("Required element/key 'password' was not specified in request.")
 
 
 def create_resource(version='1.0'):

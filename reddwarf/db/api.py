@@ -496,7 +496,7 @@ def db_snapshot_create(context, values):
     
     return db_snapshot
 
-def db_snapshot_get(context, uuid):
+def db_snapshot_get(uuid):
     LOG.debug("Fetching Snapshot record with uuid=%s." % uuid)
     session = get_session()
     result = session.query(models.DbSnapShots).\

@@ -46,9 +46,7 @@ class Controller(object):
         """ Returns a requested snapshot """
         LOG.info("Get snapshot %s" % id)
         LOG.debug("%s - %s", req.environ, req.body)
-        context = req.environ['nova.context']
-
-        db_snapshot = dbapi.db_snapshot_get(context, id)
+        db_snapshot = dbapi.db_snapshot_get(id)
         snapshot = self.view.build_single(db_snapshot, req)
         return { 'snapshot' : snapshot }
     
@@ -87,7 +85,7 @@ class Controller(object):
         LOG.info("Delete snapshot with id %s", id)
         LOG.debug("%s - %s", req.environ, req.body)
         context = req.environ['nova.context']
-        db_snapshot = dbapi.db_snapshot_get(context, id)
+        db_snapshot = dbapi.db_snapshot_get(id)
         
         uri = db_snapshot.storage_uri
         container, file = uri.split('/',2)

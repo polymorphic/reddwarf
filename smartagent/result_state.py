@@ -23,3 +23,18 @@ class ResultState:
     RUNNING = 0x01 # 001
     SUCCESS = 0x02 # 010
     FAILED = 0x03  # 100
+
+    _STATE_MAP = {
+        NOSTATE: 'pending',
+        RUNNING: 'running',
+        SUCCESS: 'success',
+        FAILED: 'failed',
+    }
+
+    @staticmethod
+    def name(code):
+        return ResultState._STATE_MAP[code]
+
+    @staticmethod
+    def valid_states():
+        return ResultState._STATE_MAP.keys()
