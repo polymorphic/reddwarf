@@ -295,7 +295,10 @@ processing of the result etc.
 """
         try:
 
-            server = self.client.create(instance_name, image_id, flavor_ref,'hpdefault',['default'])
+            # files = { '/home/ubuntu/agent.conf':'rabbit_host: 1.1.1.1\nsnapshot_id: abc111'}
+            files = None
+            
+            server = self.client.create(instance_name, image_id, flavor_ref, files, 'hpdefault',['default'])
 
             #server = self.server_controller.create(req, body)
             if not server or isinstance(server, faults.Fault)\
