@@ -100,7 +100,4 @@ class OSClient(object):
     
     def ensure_security_group(self, name, port):
         LOG.debug("Checking SecurityGroup %s" % name % " exists")
-        
-        
-        
-        
+                
