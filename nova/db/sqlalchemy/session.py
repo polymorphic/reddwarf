@@ -33,7 +33,6 @@ LOG = logging.getLogger("nova.db.sqlalchemy.session")
 _ENGINE = None
 _MAKER = None
 
-
 def get_session(autocommit=True, expire_on_commit=False):
     """Return a SQLAlchemy session."""
     global _ENGINE, _MAKER
@@ -58,7 +57,7 @@ def get_engine():
     }
 
     if "sqlite" in connection_dict.drivername:
-        engine_args["poolclass"] = sqlalchemy.pool.NullPool
+        engine_args["poolclass"] = sqlalchemy.pool.StaticPool
 
     engine = sqlalchemy.create_engine(FLAGS.sql_connection, **engine_args)
     ensure_connection(engine)
