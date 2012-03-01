@@ -277,6 +277,10 @@ DEFINE_string('novaclient_access_key', 'admin', 'Novaclient Access Key')
 DEFINE_string('novaclient_project_id', 'admin', 'Novaclient Project ID')
 DEFINE_string('novaclient_region_name', 'az-2.region-a.geo-1', 'Novaclient Region Name')
 
+DEFINE_string('swiftclient_auth_url', 'https://region-a.geo-1.identity.hpcloudsvc.com:35357/auth/v1.0', 'Swiftclient Auth URL')
+DEFINE_string('swiftclient_user', 'admin', 'Novaclient Account ID')
+DEFINE_string('swiftclient_key', 'admin', 'Novaclient Access Key')
+
 # NOTE(sirp): my_ip interpolation doesn't work within nested structures
 DEFINE_list('glance_api_servers',
             ['%s:9292' % _get_my_ip()],

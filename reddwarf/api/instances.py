@@ -281,8 +281,9 @@ processing of the result etc.
             
             # files = { '/home/ubuntu/agent.conf':'rabbit_host: 1.1.1.1\nsnapshot_id: abc111'}
             files = None
-            
-            server = self.client.create(instance_name, image_id, flavor_ref, files, 'hpdefault',[sec_group])
+            userdata = None
+
+            server = self.client.create(instance_name, image_id, flavor_ref, files, 'hpdefault', [sec_group], userdata)
 
             #server = self.server_controller.create(req, body)
             if not server or isinstance(server, faults.Fault)\

@@ -55,5 +55,21 @@
 # Reaper config
 --reaper_driver=reddwarf.reaper.driver.ReddwarfReaperDriver
 
+# Novaclient Credentials
+--novaclient_auth_url=https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens
+--novaclient_region_name=az-2.region-a.geo-1
+--novaclient_account_id=[INSERT]
+--novaclient_access_key=[INSERT]
+--novaclient_project_id=[INSERT]
+
+# Swift Credentials
+--swiftclient_auth_url=https://region-a.geo-1.identity.hpcloudsvc.com:35357/auth/v1.0
+--swiftclient_user=[INSERT]
+--swiftclient_key=[INSERT]
+
+# Instance / Image Config
+--default_image=407
+--default_instance_type=102
+
 #Extra ending line needed so that other conf files can be appended to this one.
 
