@@ -270,6 +270,8 @@ DEFINE_list('region_list',
 DEFINE_string('connection_type', 'libvirt', 'libvirt, xenapi or fake')
 DEFINE_string('aws_access_key_id', 'admin', 'AWS Access ID')
 DEFINE_string('aws_secret_access_key', 'admin', 'AWS Access Key')
+
+DEFINE_string('novaclient_auth_url', 'https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens', 'Novaclient Auth URL')
 DEFINE_string('novaclient_account_id', 'admin', 'Novaclient Account ID')
 DEFINE_string('novaclient_access_key', 'admin', 'Novaclient Access Key')
 DEFINE_string('novaclient_project_id', 'admin', 'Novaclient Project ID')

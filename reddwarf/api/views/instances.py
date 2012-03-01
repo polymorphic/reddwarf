@@ -40,15 +40,6 @@ def _base_url(req):
 class ViewBuilder(object):
     """Views for an instance"""
 
-    def x_build_basic(self, server, req, guest_states=None):
-        """Build the very basic information for an instance"""
-        instance = {}
-        instance['id'] = server['uuid']
-        instance['name'] = server['name']
-        instance['status'] = self.get_instance_status(server, guest_states)
-        instance['links'] = self._build_links(req, instance)
-        return instance
-
     def _build_basic(self, server, req, guest_states=None):
         """Build the very basic information for an instance"""
         instance = {}
@@ -56,23 +47,6 @@ class ViewBuilder(object):
         instance['name'] = server.name
         instance['status'] = self.get_instance_status(server, guest_states)
         instance['links'] = self._build_links(req, instance)
-        return instance
-
-    def x_build_detail(self, server, req, instance):
-        """Build out a more detailed view of the instance"""
-        flavor_view = flavors.ViewBuilder(_base_url(req), _project_id(req))
-        instance['flavor'] = server['flavor']
-        instance['flavor']['links'] = flavor_view._build_links(instance['flavor'])
-        instance['created'] = server['created']
-        instance['updated'] = server['updated']
-        # Add the hostname
-        if 'hostname' in server:
-            instance['hostname'] = server['hostname']
-
-        # Add volume information
-        dbvolume = self.build_volume(server)
-        if dbvolume:
-            instance['volume'] = dbvolume
         return instance
 
     def _build_detail(self, server, req, instance):
@@ -85,8 +59,8 @@ class ViewBuilder(object):
         instance['created'] = server.created
         instance['updated'] = server.updated
         # Add the hostname
-        if server.hostId:
-            instance['hostname'] = server.hostId
+        if server.accessIPv4:
+            instance['hostname'] = server.accessIPv4
 
         # Add volume information
 #        dbvolume = self.build_volume(server)
@@ -154,24 +128,6 @@ class ViewBuilder(object):
                             'reddwarf.instance.list', notifier.ERROR,
                             error_msg)
         return {'size': volume_dict['size']}
-
-    @staticmethod
-    def xget_instance_status(server, guest_states):
-        """Figures out what the instance status should be.
-
-        First looks at the server status, then to a dictionary mapping guest
-        IDs to their states.
-
-        """
-        if server['status'] == 'ERROR':
-            return 'ERROR'
-        else:
-            try:
-                state = guest_states[server['id']]
-            except (KeyError, InstanceNotFound):
-                # we set the state to shutdown if not found
-                state = power_state.SHUTDOWN
-            return common.dbaas_mapping.get(state, None)
 
     @staticmethod
     def get_instance_status(server, guest_states):

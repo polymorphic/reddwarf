@@ -30,11 +30,13 @@ import nova.exception as nova_exception
 
 
 import reddwarf
+import reddwarf.exception as exception
 from reddwarf.api import instances
 from reddwarf.db import models
 from reddwarf.tests import util
 
-instances_url = util.v1_instances_prefix
+#instances_url = util.v1_instances_prefix
+instances_url = r"/v1.0/dbaas/instances"
 
 def localid_from_uuid(id):
     return id
@@ -53,6 +55,16 @@ def compute_get_building(self, ctxt, id):
     return {'vm_state': vm_states.BUILDING,
             'id': 1,
             }
+    
+def compute_get_osclient_not_found(osclient, id):
+    raise exception.NotFound()
+
+def compute_get_osclient_unprocessable(osclient, id):
+    raise exception.UnprocessableEntity()
+
+def compute_get_osclient_accepted(osclient, id):
+#    return webob.exc.HTTPAccepted()
+    return
 
 def guest_status_get_running(id, session=None):
     status = models.GuestStatus()
@@ -64,6 +76,9 @@ def guest_status_get_failed(id, session=None):
     status.state = power_state.FAILED
     return status
 
+def guest_get_mapping_deleting(a, b):
+    return {"1": "ACTIVE (deleting)"}
+
 def request_obj(url, method, body={}):
     req = webob.Request.blank(url)
     req.method = method
@@ -71,6 +86,16 @@ def request_obj(url, method, body={}):
         req.body = json.dumps(body)
     req.headers["content-type"] = "application/json"
     return req
+
+def get_osclient_show(osclient, id):
+    response = DummyServer()
+    return response
+
+class DummyServer(object):
+    
+    def __init__(self):
+        self.id = 11111
+        self.status = "ACTIVE (deleting)"
 
 class InstanceApiTest(test.TestCase):
     """Test various Database API calls"""
@@ -86,23 +111,37 @@ class InstanceApiTest(test.TestCase):
         self.stubs.UnsetAll()
         super(InstanceApiTest, self).tearDown()
 
-#    def test_instances_delete_not_found(self):
-#        self.stubs.Set(nova.compute.API, "get", compute_get_exception)
-#        req = request_obj('%s/1' % instances_url, 'DELETE')
-#        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
-#        self.assertEqual(res.status_int, 404)
-#
-#    def test_instances_delete_unprocessable(self):
-#        self.stubs.Set(nova.compute.API, "get", compute_get_building)
-#        self.stubs.Set(reddwarf.db.api, "guest_status_get", guest_status_get_running)
-#        req = request_obj('%s/1' % instances_url, 'DELETE')
-#        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
-#        self.assertEqual(res.status_int, 422)
-#
-#    def test_instances_delete_failed(self):
-#        self.stubs.Set(nova.compute.API, "delete", compute_delete)
-#        self.stubs.Set(nova.compute.API, "get", compute_get_building)
-#        self.stubs.Set(reddwarf.db.api, "guest_status_get", guest_status_get_failed)
-#        req = request_obj('%s/1' % instances_url, 'DELETE')
-#        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
-#        self.assertEqual(res.status_int, 202)
+    def test_instances_delete_not_found(self):
+        self.stubs.Set(nova.compute.API, "get", compute_get_exception)
+        self.stubs.Set(reddwarf.client.osclient.OSClient, "delete", compute_get_osclient_not_found)
+        self.stubs.Set(reddwarf.client.osclient.OSClient, "show", get_osclient_show)
+        self.stubs.Set(reddwarf.api.instances.Controller, 
+                       "get_guest_state_mapping", 
+                       guest_get_mapping_deleting)
+        req = request_obj('%s/1' % instances_url, 'DELETE')
+        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
+        self.assertEqual(res.status_int, 404)
+
+    def test_instances_delete_unprocessable(self):
+        self.stubs.Set(nova.compute.API, "get", compute_get_building)
+        self.stubs.Set(reddwarf.client.osclient.OSClient, "delete", compute_get_osclient_unprocessable)
+        self.stubs.Set(reddwarf.client.osclient.OSClient, "show", get_osclient_show)
+        self.stubs.Set(reddwarf.api.instances.Controller, 
+                       "get_guest_state_mapping", 
+                       guest_get_mapping_deleting)
+        #self.stubs.Set(reddwarf.db.api, "guest_status_get", guest_status_get_running)
+        req = request_obj('%s/1' % instances_url, 'DELETE')
+        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
+        self.assertEqual(res.status_int, 422)
+
+    def test_instances_delete_failed(self):
+        self.stubs.Set(nova.compute.API, "delete", compute_delete)
+        self.stubs.Set(nova.compute.API, "get", compute_get_building)
+        self.stubs.Set(reddwarf.client.osclient.OSClient, "delete", compute_get_osclient_accepted)
+        self.stubs.Set(reddwarf.client.osclient.OSClient, "show", get_osclient_show)
+        self.stubs.Set(reddwarf.api.instances.Controller, 
+                       "get_guest_state_mapping", 
+                       guest_get_mapping_deleting)
+        req = request_obj('%s/1' % instances_url, 'DELETE')
+        res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
+        self.assertEqual(res.status_int, 202)

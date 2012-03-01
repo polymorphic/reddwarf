@@ -148,6 +148,19 @@ def instance_create(user_id, project_id, instance_name, server):
         instance.save(session=session)
     
     return instance
+
+def instance_set_public_ip(instance_id, public_ip):
+    """Updates an instance record with an IP"""
+    LOG.debug("instance_set_public_ip id = %s" % str(instance_id))
+    
+    from nova.db.sqlalchemy import models as nova_models
+
+    session = get_session()
+    with session.begin():
+        session.query(nova_models.Instance).\
+                filter_by(uuid=instance_id).\
+                update({'access_ip_v4': public_ip,
+                        'updated_at': datetime.datetime.utcnow()})
     
 @require_admin_context
 def show_instances_on_host(context, id):
@@ -483,7 +496,7 @@ def db_snapshot_create(context, values):
     
     return db_snapshot
 
-def db_snapshot_get(context, uuid):
+def db_snapshot_get(uuid):
     LOG.debug("Fetching Snapshot record with uuid=%s." % uuid)
     session = get_session()
     result = session.query(models.DbSnapShots).\
@@ -545,7 +558,7 @@ def db_snapshot_list_by_user_and_instance(context, user_id, instance_id):
     session = get_session()
     if not session:
         session = get_session()
-    result = session.query(models.DbSnapShots).filter_by(user_id=user_id).filter_by(instance_id)
+    result = session.query(models.DbSnapShots).filter_by(user_id=user_id).filter_by(instance_uuid=instance_id)
     if not result:
         raise exception.SnapshotNotFound(snapshot_id="All snapshots for instance")
     return result

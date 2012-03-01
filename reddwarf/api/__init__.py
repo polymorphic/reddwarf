@@ -29,7 +29,6 @@ from reddwarf.api import config
 from reddwarf.api import databases
 from reddwarf.api import images
 from reddwarf.api import instances
-from reddwarf.api import instancesV2
 from reddwarf.api import guests
 from reddwarf.api import hosts
 from reddwarf.api import management
@@ -148,7 +147,7 @@ class APIRouter(wsgi.Router):
             # users can hit that api, others would just be rejected.
 
         mapper.resource("instance", "instances",
-                        controller=instancesV2.create_resource(),
+                        controller=instances.create_resource(),
                         collection={'detail': 'GET'},
                         member=instance_members)
 
@@ -174,25 +173,33 @@ class APIRouter(wsgi.Router):
         mapper.connect("/{project_id}/instances/{instance_id}/root",
                        controller=root.create_resource(),
                        action="create", conditions=dict(method=["POST"]))
+
         mapper.connect("/{project_id}/instances/{instance_id}/root",
                        controller=root.create_resource(),
                        action="is_root_enabled", conditions=dict(method=["GET"]))
+
+        mapper.connect("/{project_id}/instances/{instance_id}/resetpassword",
+               controller=instances.create_resource(),
+               action="reset_db_password", conditions=dict(method=["POST"]))
+    
         mapper.connect("/{project_id}/instances/{instance_id}/restart",
-                       controller=instancesV2.create_resource(),
+                       controller=instances.create_resource(),
                        action="restart_compute_instance", conditions=dict(method=["POST"]))
 
-        ## demo for e2e API-MQ-Agent
-        mapper.connect("/{project_id}/instances/{instance_id}/smartagent_demo",
-                       controller=demo.create_resource(),
-                       action="reset_password", conditions=dict(method=["POST"]))
-
-        mapper.connect("/{project_id}/instances/{instance_id}/smartagent_demo",
+        # the following endpoints are only for HPCS internal E2E demo
+        mapper.connect("/{project_id}/instances/{instance_id}/demo/checkstatus",
             controller=demo.create_resource(),
             action="check_mysql_status", conditions=dict(method=["GET"]))
 
-        mapper.connect("/{project_id}/instances/{instance_id}/snapshot_demo",
+        mapper.connect("/{project_id}/instances/{instance_id}/demo/createsnapshot",
             controller=demo.create_resource(),
             action="create_snapshot", conditions=dict(method=["POST"]))
+
+        mapper.connect("/{project_id}/instances/{instance_id}/demo/applysnapshot",
+            controller=demo.create_resource(),
+            action="apply_snapshot", conditions=dict(method=["POST"]))
+        # demo endpoints ended 
+
 
         mapper.connect("/", controller=versions.create_resource(),
                        action="dispatch")

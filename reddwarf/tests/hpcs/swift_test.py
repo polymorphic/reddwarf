@@ -14,6 +14,7 @@
 
 import os
 import unittest
+import sys
 
 import swiftapi.swift as swifty
 
@@ -25,7 +26,6 @@ env = os.environ.copy()
 AUTH_USERNAME = env.get("OPENSTACK_USERNAME","")
 AUTH_PASSWORD = env.get("OPENSTACK_PASSWORD","")
 AUTH_TENANTID = env.get("OPENSTACK_TENANTID","")
-#AUTH_PASSWORD = "hello"
 
 TEST_CONTAINER = "MyTestContainer"
 
@@ -37,22 +37,22 @@ object_url = ""
 
 
 class HPCSTest(unittest.TestCase):
-    
-    def setUp(self):
-        global auth_token, object_url, authenticated
-        
-        if(authenticated != True):
-            self.runAuthentication()
-        
-        print ""
-        
-    def runAuthentication(self):
+
+    @classmethod
+    def setUpClass(self):
         result = swifty.get_auth(AUTH_URL, AUTH_USERNAME, AUTH_PASSWORD, False, "2.0")
         
         global auth_token, object_url, authenticated
         object_url = result[0]
         auth_token = result[1]
         authenticated = True
+        
+        print "Setting up the authentication"
+        
+    
+    def setUp(self):
+        print ""
+
         
     def cleanUpContainer(self):
         swifty.delete_container(object_url, auth_token, TEST_CONTAINER)

@@ -40,8 +40,10 @@ logging.basicConfig(level=logging.DEBUG,
                     filemode='a')
 
 AGENT_HOME = '/home/nova'
-LOG = logging.getLogger()
-FH = logging.FileHandler(os.path.join(AGENT_HOME, '/logs/smartagent.log'))
+LOG = logging.getLogger(__name__)
+FH = logging.FileHandler(os.path.join(AGENT_HOME,
+    'logs',
+    'smartagent.log'))
 FH.setLevel(logging.DEBUG)
 LOG.addHandler(FH)
 
@@ -51,11 +53,12 @@ class SmartAgent:
     contents of the messages received."""
 
     def __init__(self,
-                 msg_service,
-                 pidfile=os.path.join(AGENT_HOME, '/lock/smartagent.pid')):
+                 msg_service):
         """ Constructor method """
         # pylint thought too many arguments. But should keep around.
-        self.pidfile = pidfile
+        self.pidfile = os.path.join(AGENT_HOME,
+            'lock',
+            'smartagent.pid')
         self.stdin = '/dev/null' 
         self.stdout = '/dev/null'
         self.stderr = '/dev/null'
@@ -63,8 +66,7 @@ class SmartAgent:
         self.messaging = msg_service
         self.messaging.callback = self.process_message
         self.agent_username = 'os_admin'
-        # TODO extract into instance variable
-        self.checker = MySqlChecker()  
+        self.checker = MySqlChecker()
         self.handler = MysqlCommandHandler()
 
     def daemonize(self):
@@ -137,8 +139,8 @@ class SmartAgent:
         """ Stop the daemon """
         LOG.debug('Checking for %s', self.pidfile)
         if not os.path.isfile(self.pidfile):
-            sys.stderr.write("Daemon not running?\n" % self.pidfile)
-            sys.exit(os.EX_OK)
+            sys.stderr.write("PID file not found: %s\n" % self.pidfile)
+            sys.exit(os.EX_OK)  # TODO: do not exit so can restart a stopped agent
         # Get the pid from the pidfile
         with open(self.pidfile,'r') as f:
             pid_string = f.read().strip()
@@ -147,12 +149,12 @@ class SmartAgent:
         except ValueError:
             pid = None
         if not pid:
-            sys.stderr.write("Can't parse PID form pidfile %s\n" % self.pidfile)
+            sys.stderr.write("Can't parse PID form pidfile: %s\n" % self.pidfile)
             sys.exit(os.EX_OSFILE)
 
         # Try killing the daemon process       
         try:
-            while 1:
+            while 1:  # TODO: prevent infinite loop
                 os.kill(pid, SIGTERM)
                 time.sleep(0.1)
         except OSError, err:
@@ -182,8 +184,7 @@ class SmartAgent:
             # start consuming rpc messages from API Server
             self.messaging.start_consuming()
         except Exception as err:
-            LOG.error("Failed to connect to MQ due to channel not \
-            available: %s", err)
+            LOG.error("Failed to connect to MQ due to channel not available: %s", err)
             pass
 
     def create_database_instance(self, msg):
@@ -239,18 +240,6 @@ class SmartAgent:
         """ This will call the method that creates a database snapshot """
         result = self.handler.create_db_snapshot(msg['args']['sid'])
         self.messaging.phone_home(result)
-
-    def list_database_snapshots(self, msg):
-        """ This will call the method that returns database snapshots """
-        LOG.debug('Functionality not implemented')
-        result = None
-        return result
-
-    def delete_database_snapshot(self, msg):
-        """ This will call the method that deletes database snapshot """
-        LOG.debug('Functionality not implemented')
-        result = None
-        return result
 
     def check_status(self):
         """ This calls the method to check MySQL's running status """
@@ -329,10 +318,6 @@ class SmartAgent:
             result = self.reset_password(msg)
         elif method == 'create_snapshot':
             result = self.take_database_snapshot(msg)
-        elif method == 'list_snapshots':
-            result = self.list_database_snapshots(msg)
-        elif method == 'delete_snapshot':
-            result = self.delete_database_snapshot(msg)
         elif method == 'check_mysql_status':
             result = self.check_status()
         elif method == 'check_system_status':
