@@ -101,7 +101,6 @@ class DBTestCase(TestCase):
         engine = session.get_engine()
         for model in metaModel:
             model.metadata.bind = engine
-            print model.metadata.create_all()
-            print model.__table__.select().execute()
+            model.metadata.create_all()
         
         
