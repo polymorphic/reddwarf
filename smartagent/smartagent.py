@@ -65,19 +65,19 @@ class SmartAgent:
         self.stdout = '/dev/null'
         self.stderr = '/dev/null'
         self.msg_count = 0
-        self.messaging.callback = self.process_message
         self.agent_username = 'os_admin'
         self.checker = MySqlChecker()
         self.handler = MysqlCommandHandler()
         # get RabbitMQ config
         self.messaging = None
-        mq_conf = load_config("messaging")
+        mq_conf = self.load_config("messaging")
         if not mq_conf:
             self.messaging = MessagingService()    # using default MQ host
         else:
             self.messaging = MessagingService(host_address=mq_conf['rabbit_host'])
         # get snapshot config if any
-        self.snapshot_conf = load_config("snapshot")
+        self.snapshot_conf = self.load_config("snapshot")
+        self.messaging.callback = self.process_message
 
     def load_config(self, section):
         result = {}
@@ -209,19 +209,17 @@ class SmartAgent:
                 LOG.debug('Initial DB status checked and phone home message sent: %s', message)
             except Exception as err:
                 LOG.error("Failed to connect to MQ due to channel not available: %s", err)
-                pass
         else:
             # apply snapshot if the instance is configured to do so
-            result = self.handler.apply_db_snapshot(snapshot_conf['snapshot_uri'],
-                                                    snapshot_conf['swift_auth_user'],
-                                                    snapshot_conf['swift_auth_key'],
-                                                    snapshot_conf['swift_auth_url'])
+            result = self.handler.apply_db_snapshot(self.snapshot_conf['snapshot_uri'],
+                                                    self.snapshot_conf['swift_auth_user'],
+                                                    self.snapshot_conf['swift_auth_key'],
+                                                    self.snapshot_conf['swift_auth_url'])
             try:
                 self.messaging.phone_home(result)
                 LOG.debug('Initial snapshot applied and phone home message sent: %s', result)
             except Exception as err:
                 LOG.error("Failed to connect to MQ due to channel not available: %s", err)
-                pass
         # start listening and consuming rpc messages from API Server
         try:
             self.messaging.start_consuming()

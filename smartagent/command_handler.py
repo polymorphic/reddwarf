@@ -339,7 +339,7 @@ class MysqlCommandHandler:
         else:
             return 'normal'
     
-    def create_db_snapshot(self, path_specifier, container='mysql-backup-dbasdemo', st_user, st_key, st_auth):
+    def create_db_snapshot(self, path_specifier, st_user, st_key, st_auth, container='mysql-backup-dbasdemo'):
         path = os.path.join(self.backup_path, path_specifier)
         log_home = os.path.join(self.backlog_path, path_specifier)
         keyword_to_check = "innobackupex: completed OK!"  # TODO: replace with regexp?
@@ -523,7 +523,8 @@ class MysqlCommandHandler:
         
         """ push the current data to history folder and set the correct permission"""
         try:
-            os.system('sudo mv /var/lib/mysql /var/lib/mysql.old')
+            time_stamp = time.time()
+            os.system('sudo mv /var/lib/mysql /var/lib/mysql.%s' % time_stamp)
             LOG.debug('after sudo mv')
             os.system('sudo mkdir /var/lib/mysql')
             LOG.debug('after sudo mkdir')
