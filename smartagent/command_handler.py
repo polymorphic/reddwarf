@@ -31,8 +31,9 @@ import tarfile
 from os import environ
 import swift 
 import socket
+import string 
+
 from check_mysql_status import MySqlChecker
-import string
 
 try:
     from eventlet.green.httplib import HTTPException, HTTPSConnection
@@ -78,6 +79,7 @@ class MysqlCommandHandler:
             , database_name=database_name,
             config_file=config_file)
         self.persistence_agent.open_connection()
+        self.checker = MySqlChecker()
         
         """ sanity check for log folder existence """
         self.backlog_path = '/home/nova/backup_logs/'
@@ -169,10 +171,9 @@ class MysqlCommandHandler:
        
         # Open database connection
         try:
-            LOG.debug("Executing SQL command: %s", sql_commands)
             self.persistence_agent.execute_sql_commands(sql_commands)
             result = ResultState.SUCCESS
-        except Exception as error:
+        except _mysql.Error as error:
             result = ResultState.FAILED
             LOG.error("Reset user password failed: %s", error)
         return result
@@ -258,7 +259,7 @@ class MysqlCommandHandler:
 #        return snapshot_size
             
     
-    def get_response_body(self, container, path_specifier, result, snapshot_size=0):
+    def get_response_body_for_create_snapshot(self, container, path_specifier, result, snapshot_size=0):
         #temp = 'mysql-backup' + '/' + path_specifier + '.tar.gz'
         if result == ResultState.SUCCESS:
             temp_file_name = '%s%s' % (os.path.join(container, path_specifier), '.tar.gz')
@@ -271,35 +272,36 @@ class MysqlCommandHandler:
                          "storage_uri": temp_file_name,
                          "storage_size": snapshot_size }}
 
+    def get_leading_path(self, path):
+        #print path
+        directs = path.split('/')
+        #print directs
+        leading_path =''
+        for direct in directs:
+            leading_path = os.path.join(leading_path, direct)
+        
+        #print '%s/' % leading_path
+        return '%s/' % leading_path
+    
     def create_tar_file(self, path, tar_name):
         try:
-            #target_name = tar_name + '.tar.gz'
             target_name = '%s%s' % (tar_name, '.tar.gz')
-            with tarfile.open(target_name, 'w:gz') as tar_file:
-                tar_file.add(path)
-            fully_qualified_target_name = '/root/' + target_name
-#            print os.path.exists(target)
-#            print tarfile.is_tarfile(target_name)
-            
-#            return target_name
-        
-            
-#            target = '/root/' + target_name
-            
-            if not os.path.exists(fully_qualified_target_name):
-                LOG.debug('tar file does not exist: %s',
-                    fully_qualified_target_name)
-                raise
-            if not tarfile.is_tarfile(target_name):
-                LOG.debug('tar file not an archive: %s', target_name)
-                raise
-            else:
-                return target_name
+            leading_path = self.get_leading_path(path)
+            LOG.debug('the leading path for tar file is %s', leading_path)
+            with tarfile.open(target_name, 'w:gz') as tar:
+                for (path, dirs, files) in os.walk(path):
+                    for file in files:
+                        filename = os.path.join(path, file)
+                        final_member_name = filename.replace(leading_path, '')
+                        #LOG.debug('final_member_name: %S', final_member_name)
+                        #tar.add(name=filename, recursive=False)
+                        tar.add(name=filename, arcname=final_member_name)
+            return target_name
         except Exception as tarfile_exception:
             LOG.error('tar/compress snapshot failed somehow: %s',
                 tarfile_exception)
-            return ResultState.FAILED
-        
+            return ResultState.FAILED  
+    
     def keyword_checker(self, keyword_to_check, log_path):
         try:
             with open(log_path, "r") as f:
@@ -337,7 +339,7 @@ class MysqlCommandHandler:
         else:
             return 'normal'
     
-    def create_db_snapshot(self, container, path_specifier):
+    def create_db_snapshot(self, path_specifier, container='mysql-backup-dbasdemo'):
         path = os.path.join(self.backup_path, path_specifier)
         log_home = os.path.join(self.backlog_path, path_specifier)
         keyword_to_check = "innobackupex: completed OK!"  # TODO: replace with regexp?
@@ -403,12 +405,19 @@ class MysqlCommandHandler:
                     self.get_snapshot_size(tar_result))
 
             """ start upload to swift """
-            opts = {'auth' : environ.get('ST_AUTH'),
-                    'user' : environ.get('ST_USER'),
-                    'key' : environ.get('ST_KEY'),
+            opts = {'auth' : st_auth,
+                    'user' : st_user,
+                    'key' : st_key,
                     'snet' : False,
                     'prefix' : '',
                     'auth_version' : '1.0'}
+
+#            opts = {'auth' : environ.get('ST_AUTH'),
+#                    'user' : environ.get('ST_USER'),
+#                    'key' : environ.get('ST_KEY'),
+#                    'snet' : False,
+#                    'prefix' : '',
+#                    'auth_version' : '1.0'}
 
             try:
                 cont = swift.st_get_container(opts, container)
@@ -443,10 +452,10 @@ class MysqlCommandHandler:
         try: 
             proc = subprocess.Popen("sudo service mysql restart", shell=True)
         except (OSError, ValueError) as ex_oserror:
-            LOG.error('CALL exception caught: %s', ex_oserror)
+            LOG.error('Popen exception caught: %s', ex_oserror)
             return ResultState.FAILED
         except Exception as ex:
-            LOG.error('CALL exception caught: %s', ex)
+            LOG.error('Popen exception caught: %s', ex)
             return ResultState.FAILED
         else:
             if self.check_process(proc) != 'normal':
@@ -462,10 +471,10 @@ class MysqlCommandHandler:
             proc = subprocess.Popen("sudo service mysql stop", shell=True)
             print proc
         except (OSError, ValueError) as ex_oserror:
-            LOG.error('CALL exception caught: %s', ex_oserror)
+            LOG.error('Popen exception caught: %s', ex_oserror)
             return ResultState.FAILED
         except Exception as ex:
-            LOG.error('CALL exception caught: %s', ex)
+            LOG.error('Popen exception caught: %s', ex)
             return ResultState.FAILED
         else:
             if self.check_process(proc) != 'normal':
@@ -478,10 +487,10 @@ class MysqlCommandHandler:
         try:
             proc = subprocess.Popen("sudo service mysql start", shell=True)
         except (OSError, ValueError) as ex_oserror:
-            LOG.error('CALL exception caught: %s', ex_oserror)
+            LOG.error('Popen exception caught: %s', ex_oserror)
             return ResultState.FAILED
         except Exception as ex:
-            LOG.error('CALL exception caught: %s', ex)
+            LOG.error('Popen exception caught: %s', ex)
             return ResultState.FAILED
         else:
             if self.check_process(proc) != 'normal':
@@ -501,21 +510,31 @@ class MysqlCommandHandler:
                 tar_file.extractall(dest_path)
                 return True
         except Exception as tarfile_exception:
-            LOG.error('tar/compress snapshot failed somehow: %s',
+            LOG.error('untar/decompress snapshot failed somehow: %s',
                 tarfile_exception)
             return False
     
     def apply_db_snapshot(self, uri, st_user, st_key, st_auth):
+        
+        LOG.debug('inside apply_db_snapshot, we are here')
         """ stop mysql server """
         if not self.stop_database():
             return self.get_response_body_for_apply_snapshot(ResultState.FAILED)
         
-        """ push the current data to history folder """
+        """ push the current data to history folder and set the correct permission"""
         try:
-            os.system('mv /var/lib/mysql /var/lib/mysql.old')
-            os.system('mkdir /var/lib/mysql')
-        except os.error:
-            LOG.error('remove historical data encounter errors: %s', os.error)
+            os.system('sudo mv /var/lib/mysql /var/lib/mysql.old')
+            LOG.debug('after sudo mv')
+            os.system('sudo mkdir /var/lib/mysql')
+            LOG.debug('after sudo mkdir')
+            os.system('sudo chown -R mysql:mysql /var/lib/mysql')
+            LOG.debug('after sudo chown -R')
+            os.system('sudo chmod 775 /var/lib/mysql')
+            LOG.debug('after sudo chmod')
+        except os.error as os_error:
+            LOG.error('remove historical data encounter errors: %s', os_error)
+        except os.error as exceptions:
+            LOG.error('remove historical data encounter generic errors: %s', execeptions)
             
         """ parse the uri to get the swift container and object """
         paras = string.split(uri, '/')
@@ -531,7 +550,14 @@ class MysqlCommandHandler:
                     'snet' : False,
                     'prefix' : '',
                     'auth_version' : '1.0'}
-        
+
+#        opts = {'auth' : environ.get('ST_AUTH'),
+#                    'user' : environ.get('ST_USER'),
+#                    'key' : environ.get('ST_KEY'),
+#                    'snet' : False,
+#                    'prefix' : '',
+#                    'auth_version' : '1.0'}
+            
         try:
             cont = swift.st_get_container(opts, container_name)
             if len(cont) == 0:
@@ -550,19 +576,31 @@ class MysqlCommandHandler:
         """ decompress snapshot """
         if not self.extract_tar_file('/var/lib/mysql', snapshot_name):
             return self.get_response_body_for_apply_snapshot(ResultState.FAILED)
-        
+
+        """ reset the permission for mysql datadir again and remove .tar.gz file """
+        try:
+            os.system('sudo chown -R mysql:mysql /var/lib/mysql')
+            LOG.debug('after sudo chown on mysql datadir')
+            os.system('sudo rm %s' % snapshot_name)
+            LOG.debug('after sudo rm the tar.gz file')
+        except os.error as os_error:
+            LOG.error('reset permission (before restart mysql) encounter errors: %s', os_error)
+        except os.error as exceptions:
+            LOG.error('reset permission (before restart mysql) encounter generic errors: %s', execeptions)
+            
         """ restart mysql """
         if not self.start_database():
             return self.get_response_body_for_apply_snapshot(ResultState.FAILED)
         
+        return self.get_response_body_for_apply_snapshot(ResultState.RUNNING)
+    
 def main():
     """ main program """
     handler = MysqlCommandHandler()
 #    handler.reset_user_password(this_variable_should_be_username_of_tenant, 'hpcs')
-    # TODO: make sure to get this from API!
-    #handler.create_db_snapshot(container='mysql-backup-dbasdemo', path_specifier='uuid2')
-    handler.apply_db_snapshot('mysql-backup-dbasdemo/uuid2.tar.gz', 'st_user', 'st_key', 'st_auth')
-
-
+    #handler.create_db_snapshot(container='mysql-backup-dbasdemo', path_specifier='anna')
+    #handler.restart_database()
+    handler.apply_db_snapshot('mysql-backup-dbasdemo/anna.tar.gz', 'st_user', 'st_key', 'st_auth')
+    
 if __name__ == '__main__':
     main()
