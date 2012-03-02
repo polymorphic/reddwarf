@@ -339,7 +339,7 @@ class MysqlCommandHandler:
         else:
             return 'normal'
     
-    def create_db_snapshot(self, path_specifier, container='mysql-backup-dbasdemo'):
+    def create_db_snapshot(self, path_specifier, container='mysql-backup-dbasdemo', st_user, st_key, st_auth):
         path = os.path.join(self.backup_path, path_specifier)
         log_home = os.path.join(self.backlog_path, path_specifier)
         keyword_to_check = "innobackupex: completed OK!"  # TODO: replace with regexp?
@@ -533,8 +533,8 @@ class MysqlCommandHandler:
             LOG.debug('after sudo chmod')
         except os.error as os_error:
             LOG.error('remove historical data encounter errors: %s', os_error)
-        except os.error as exceptions:
-            LOG.error('remove historical data encounter generic errors: %s', execeptions)
+        except Exception as ex:
+            LOG.error('remove historical data encounter generic errors: %s', ex)
             
         """ parse the uri to get the swift container and object """
         paras = string.split(uri, '/')
@@ -585,8 +585,8 @@ class MysqlCommandHandler:
             LOG.debug('after sudo rm the tar.gz file')
         except os.error as os_error:
             LOG.error('reset permission (before restart mysql) encounter errors: %s', os_error)
-        except os.error as exceptions:
-            LOG.error('reset permission (before restart mysql) encounter generic errors: %s', execeptions)
+        except Exception as ex:
+            LOG.error('reset permission (before restart mysql) encounter generic errors: %s', ex)
             
         """ restart mysql """
         if not self.start_database():
