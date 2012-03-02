@@ -65,7 +65,6 @@ class SmartAgent:
         self.stdout = '/dev/null'
         self.stderr = '/dev/null'
         self.msg_count = 0
-        self.messaging.callback = self.process_message
         self.agent_username = 'os_admin'
         self.checker = MySqlChecker()
         self.handler = MysqlCommandHandler()
@@ -78,6 +77,7 @@ class SmartAgent:
             self.messaging = MessagingService(host_address=mq_conf['rabbit_host'])
         # get snapshot config if any
         self.snapshot_conf = load_config("snapshot")
+        self.messaging.callback = self.process_message
 
     def load_config(self, section):
         result = {}
