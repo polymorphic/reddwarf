@@ -24,6 +24,7 @@ import os.path
 import errno
 import socket
 import re
+import subprocess
 import logging
 logging.basicConfig()
 
@@ -59,9 +60,23 @@ class MySqlChecker:
         except IOError as io_exception:
             LOG.debug('Exception caught while opening PID file; %s',
                 str(io_exception))
-            return None
+            return self.__findPid('mysqld')
         else:
             return pid_string
+
+    def __findPid(self, proc_name):
+        ps = subprocess.Popen("ps ax -o pid= -o state= -o command=", shell=True, stdout=subprocess.PIPE)
+        ps_pid = ps.pid
+        output = ps.stdout.read()
+        ps.stdout.close()
+        ps.wait()
+        for line in output.split("\n"):
+            res = re.findall("(\d+) ([^ZT]\w?) (.*)", line)
+            if res:
+                pid = int(res[0][0])
+                if proc_name in res[0][2] and pid != os.getpid() and pid != ps_pid:
+                    return pid
+        return None
 
     def _is_process_alive(self, pid_string):
         """
