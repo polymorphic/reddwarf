@@ -16,6 +16,11 @@ import os
 import unittest
 import sys
 
+"""This was added so you can run this from the command line, and it will be able to pick up the swiftapi.swift module"""
+cwd = os.getcwd()
+os.chdir("../../../")
+sys.path.append(os.getcwd())
+
 import swiftapi.swift as swifty
 
 
