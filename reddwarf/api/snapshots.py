@@ -91,26 +91,30 @@ class Controller(object):
         db_snapshot = dbapi.db_snapshot_get(id)
         
         uri = db_snapshot.storage_uri
-        container, file = uri.split('/',2)
         
-        LOG.debug("Deleting from Container: %s - File: %s", container, file)
-
-        ## TODO Move these to database!
-        ST_AUTH=FLAGS.swiftclient_auth_url
-        ST_USER=FLAGS.swiftclient_user
-        ST_KEY=FLAGS.swiftclient_key
-
-        opts = {'auth' : ST_AUTH,
-            'user' : ST_USER,
-            'key' : ST_KEY,
-            'snet' : False,
-            'prefix' : '',
-            'auth_version' : '1.0'}
+        #Only delete from swift if we have a URI
+        if len(uri) > 0:
+            container, file = uri.split('/',2)
         
-        swift.st_delete(opts, container, file)
+            LOG.debug("Deleting from Container: %s - File: %s", container, file)
+    
+            ## TODO Move these to database!
+            ST_AUTH=FLAGS.swiftclient_auth_url
+            ST_USER=FLAGS.swiftclient_user
+            ST_KEY=FLAGS.swiftclient_key
+    
+            opts = {'auth' : ST_AUTH,
+                'user' : ST_USER,
+                'key' : ST_KEY,
+                'snet' : False,
+                'prefix' : '',
+                'auth_version' : '1.0'}
+            
+            swift.st_delete(opts, container, file)
         
-        # swift client delete(db_snapshot.storage_uri)
+        # Mark snapshot deleted in DB
         dbapi.db_snapshot_delete(context, id)
+
         return exc.HTTPOk()
 
     def create(self, req, body):

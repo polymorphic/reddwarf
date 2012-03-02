@@ -94,20 +94,15 @@ class Controller(object):
         #servers_respose = self.server_controller.index(req)
         #server_list = servers_response['servers']
         #context = req.environ['nova.context']
-        for instance in instance_list:
-            print instance.uuid
         # Instances need the status for each instance in all circumstances,
         # unlike servers.
         server_states = db.instance_state_get_all_filtered(context)
         for instance in instance_list:
             state = server_states[instance['id']]
             instance['status'] = nova_common.status_from_state(state)
-            print instance['status']
 
         id_list = [instance['internal_id'] for instance in instance_list]
-        print id_list
         guest_state_mapping = self.get_guest_state_mapping(id_list)
-        print guest_state_mapping
         instances = [self.view.build_index(instance, req, guest_state_mapping)
                      for instance in instance_list]
         return {'instances': instances}
