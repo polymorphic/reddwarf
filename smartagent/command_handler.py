@@ -523,7 +523,8 @@ class MysqlCommandHandler:
         
         """ push the current data to history folder and set the correct permission"""
         try:
-            os.system('sudo mv /var/lib/mysql /var/lib/mysql.old')
+            time_stamp = time.time()
+            os.system('sudo mv /var/lib/mysql /var/lib/mysql.%s' % time_stamp)
             LOG.debug('after sudo mv')
             os.system('sudo mkdir /var/lib/mysql')
             LOG.debug('after sudo mkdir')
