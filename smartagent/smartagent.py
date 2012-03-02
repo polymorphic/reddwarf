@@ -278,7 +278,10 @@ class SmartAgent:
 
     def take_database_snapshot(self, msg):
         """ This will call the method that creates a database snapshot """
-        result = self.handler.create_db_snapshot(msg['args']['sid'])
+        result = self.handler.create_db_snapshot(msg['args']['sid'],
+                                                 msg['args']['credential']['user'], 
+                                                msg['args']['credential']['key'], 
+                                                msg['args']['credential']['auth'])
         self.messaging.phone_home(result)
 
     def apply_database_snapshot(self, msg):
