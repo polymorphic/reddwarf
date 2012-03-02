@@ -21,6 +21,7 @@ from novaclient.v1_1 import client
 from novaclient.v1_1 import flavors
 from novaclient import base
 from novaclient.v1_1 import base as local_base
+from webob import exc as exception
 
 
 LOG = log.getLogger('reddwarf.tests.hpcs.nova_test')
@@ -45,6 +46,8 @@ class OSClientTests(unittest.TestCase):
         self.mox.StubOutWithMock(client, "flavors")
         
         self.mox.StubOutWithMock(self.novaClient.servers, "get")
+        self.mox.StubOutWithMock(self.novaClient.servers, "delete")
+        self.mox.StubOutWithMock(self.novaClient.servers, "reboot")
         self.mox.StubOutWithMock(client, "servers")
         
         self.nClient = client.Client("username", "password", "apikey", "url", region_name="return")
@@ -91,4 +94,29 @@ class OSClientTests(unittest.TestCase):
         
         self.mox.VerifyAll()
     
+    def test_delete_instance(self):
+        """Test a successful delete instance call"""
+        
+        self.novaClient.servers.delete(1).AndReturn(202)
+        self.mox.ReplayAll()
+        
+        self.nClient.servers = self.novaClient.servers
+        self.osclient = OSClient("username", "password", "apikey", "url", region_name="return")
+        result = self.osclient.delete(1)
+        
+        self.assertEqual(202, result)
+        self.mox.VerifyAll()
+    
+    def test_restart_instance(self):
+        """Test a successful restart instance call"""
+                
+        self.novaClient.servers.reboot(1).AndReturn(202)
+        self.mox.ReplayAll()
+        
+        self.nClient.servers = self.novaClient.servers
+        self.osclient = OSClient("username", "password", "apikey", "url", region_name="return")
+        result = self.osclient.restart(1)
+        
+        self.assertEqual(202, result)
+        self.mox.VerifyAll()
         
