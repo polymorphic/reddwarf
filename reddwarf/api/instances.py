@@ -94,7 +94,6 @@ class Controller(object):
         #servers_respose = self.server_controller.index(req)
         #server_list = servers_response['servers']
         #context = req.environ['nova.context']
-
         # Instances need the status for each instance in all circumstances,
         # unlike servers.
         server_states = db.instance_state_get_all_filtered(context)
@@ -102,7 +101,7 @@ class Controller(object):
             state = server_states[instance['id']]
             instance['status'] = nova_common.status_from_state(state)
 
-        id_list = [instance['id'] for instance in instance_list]
+        id_list = [instance['internal_id'] for instance in instance_list]
         guest_state_mapping = self.get_guest_state_mapping(id_list)
         instances = [self.view.build_index(instance, req, guest_state_mapping)
                      for instance in instance_list]
@@ -187,8 +186,16 @@ class Controller(object):
         # Generate a UUID and set as the hostname, to guarantee unique
         # routing key for Agent
         host_name = str(utils.gen_uuid());
+
+        storage_uri = None
         
-        server_resp = self._try_create_server(req, host_name, image_id, flavor_ref)
+        if hasattr(body['instance'],'snapshotId'):
+            snapshot_id = body['instance']['snapshotId']
+            if snapshot_id and len(snapshot_id) > 0:
+                db_snapshot = dbapi.db_snapshot_get(snapshot_id)
+                storage_uri = db_snapshot.storage_uri
+            
+        server_resp = self._try_create_server(req, host_name, image_id, flavor_ref, storage_uri)
         
         instance_id = server_resp.uuid
         local_id = str(server_resp.id)
@@ -266,7 +273,7 @@ class Controller(object):
             name=name,
             description=description)
 
-    def _try_create_server(self, req, instance_name, image_id, flavor_ref):
+    def _try_create_server(self, req, instance_name, image_id, flavor_ref, snapshot_uri=None):
         """Handle the call to create a server through novaclient.
 
 Separating this so we could do retries in the future and other
@@ -276,8 +283,25 @@ processing of the result etc.
             # Default SecurityGroup to use for instances
             sec_group = FLAGS.default_firewall_rule_name
             
-            # files = { '/home/ubuntu/agent.conf':'rabbit_host: 1.1.1.1\nsnapshot_id: abc111'}
-            files = None
+            conf_file = '[messaging]\n'\
+                        'rabbit_host: ' + FLAGS.rabbit_host + '\n'\
+                        '\n'\
+                        '[database]\n'\
+                        'initial_password: ' + utils.generate_password(length=8)
+                        
+            if snapshot_uri and len(snapshot_uri) > 0:
+                conf_file.join('\n'\
+                               '[snapshot]\n'\
+                               'snapshot_uri: ' + snapshot_uri + '\n'\
+                               'swift_auth_url: ' + FLAGS.swiftclient_auth_url + '\n'\
+                               'swift_auth_user: ' + FLAGS.swiftclient_user + '\n'\
+                               'swift_auth_key: ' + FLAGS.swiftclient_key + '\n')
+
+                        
+            LOG.debug('%s',conf_file)
+            
+            files = { '/home/nova/agent.conf': conf_file }
+            #files = None
             userdata = None
 
             server = self.client.create(instance_name, image_id, flavor_ref, files, 'hpdefault', [sec_group], userdata)

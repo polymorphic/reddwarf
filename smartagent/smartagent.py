@@ -27,6 +27,7 @@ import sys
 import os
 import time
 import atexit
+import ConfigParser
 import logging
 from signal import SIGTERM 
 from subprocess import call
@@ -40,7 +41,9 @@ logging.basicConfig(level=logging.DEBUG,
                     filemode='a')
 
 AGENT_HOME = '/home/nova'
+AGENT_CONFIG = '/home/nova/agent.config'
 LOG = logging.getLogger(__name__)
+
 FH = logging.FileHandler(os.path.join(AGENT_HOME,
     'logs',
     'smartagent.log'))
@@ -52,8 +55,7 @@ class SmartAgent:
     server and take action on a particular RedDwarf instance based on the
     contents of the messages received."""
 
-    def __init__(self,
-                 msg_service):
+    def __init__(self):
         """ Constructor method """
         # pylint thought too many arguments. But should keep around.
         self.pidfile = os.path.join(AGENT_HOME,
@@ -63,11 +65,34 @@ class SmartAgent:
         self.stdout = '/dev/null'
         self.stderr = '/dev/null'
         self.msg_count = 0
-        self.messaging = msg_service
-        self.messaging.callback = self.process_message
         self.agent_username = 'os_admin'
         self.checker = MySqlChecker()
         self.handler = MysqlCommandHandler()
+        # get RabbitMQ config
+        self.messaging = None
+        mq_conf = self.load_config("messaging")
+        if not mq_conf:
+            self.messaging = MessagingService()    # using default MQ host
+        else:
+            self.messaging = MessagingService(host_address=mq_conf['rabbit_host'])
+        # get snapshot config if any
+        self.snapshot_conf = self.load_config("snapshot")
+        self.messaging.callback = self.process_message
+
+    def load_config(self, section):
+        result = {}
+        config = ConfigParser.ConfigParser()
+        config.read(AGENT_CONFIG)
+        try:
+            options = config.options(section)
+        except:
+            return None
+        for option in options:
+            try:
+                result[option] = config.get(section, option)
+            except:
+                result[option] = None
+        return result
 
     def daemonize(self):
         """ This method is for the purpose of the smart agent
@@ -173,18 +198,29 @@ class SmartAgent:
 
     def run(self):
         """ Run the smart agent """
-        # phone home the initial status to API Server
-        state = self.check_status()
-        hostname = os.uname()[1]
-        message = {"method": "update_instance_state",
-                   "args": {'hostname': hostname, 'state': str(state)}}
-        try:
-            self.messaging.phone_home(message)
-            LOG.debug('Initial phone home message sent: %s', message)
-        except Exception as err:
-            LOG.error("Failed to connect to MQ due to channel not available: %s", err)
-            pass
-        # start consuming rpc messages from API Server
+        if not self.snapshot_conf:
+            # initial check for DB status and phone home to API Server
+            state = self.check_status()
+            hostname = os.uname()[1]
+            message = {"method": "update_instance_state",
+                       "args": {'hostname': hostname, 'state': str(state)}}
+            try:
+                self.messaging.phone_home(message)
+                LOG.debug('Initial DB status checked and phone home message sent: %s', message)
+            except Exception as err:
+                LOG.error("Failed to connect to MQ due to channel not available: %s", err)
+        else:
+            # apply snapshot if the instance is configured to do so
+            result = self.handler.apply_db_snapshot(self.snapshot_conf['snapshot_uri'],
+                                                    self.snapshot_conf['swift_auth_user'],
+                                                    self.snapshot_conf['swift_auth_key'],
+                                                    self.snapshot_conf['swift_auth_url'])
+            try:
+                self.messaging.phone_home(result)
+                LOG.debug('Initial snapshot applied and phone home message sent: %s', result)
+            except Exception as err:
+                LOG.error("Failed to connect to MQ due to channel not available: %s", err)
+        # start listening and consuming rpc messages from API Server
         try:
             self.messaging.start_consuming()
         except Exception as err:
@@ -227,8 +263,7 @@ class SmartAgent:
 
     def create_user(self, msg):
         """ This calls the method that creates a given database user """
-        handler = command_handler.MysqlCommandHandler()
-        result = handler.create_user(
+        result = self.handler.create_user(
             msg['args']['username'], 
             msg['args']['hostname'],
             msg['args']['password'])
@@ -236,15 +271,27 @@ class SmartAgent:
 
     def delete_user(self, msg):
         """ This calls the method that deletes a database user """
-        handler = command_handler.MysqlCommandHandler()
-        result = handler.delete_user(msg['args']['username'])
+        result = self.handler.delete_user(msg['args']['username'])
         return result
 
     def take_database_snapshot(self, msg):
         """ This will call the method that creates a database snapshot """
-        result = self.handler.create_db_snapshot(msg['args']['sid'])
+        result = self.handler.create_db_snapshot(msg['args']['sid'],
+                                                 msg['args']['credential']['user'], 
+                                                msg['args']['credential']['key'], 
+                                                msg['args']['credential']['auth'])
         self.messaging.phone_home(result)
 
+    def apply_database_snapshot(self, msg):
+        print "process touches here"
+
+        result = self.handler.apply_db_snapshot(msg['args']['storage_path'], 
+                                                msg['args']['credential']['user'], 
+                                                msg['args']['credential']['key'], 
+                                                msg['args']['credential']['auth'])
+        
+        self.messaging.phone_home(result)
+        
     def check_status(self):
         """ This calls the method to check MySQL's running status """
         if self.checker.check_if_running(sleep_time_seconds=3,
@@ -322,6 +369,8 @@ class SmartAgent:
             result = self.reset_password(msg)
         elif method == 'create_snapshot':
             result = self.take_database_snapshot(msg)
+        elif method == 'apply_snapshot':
+            result = self.apply_database_snapshot(msg)
         elif method == 'check_mysql_status':
             result = self.check_status()
         elif method == 'check_system_status':
@@ -336,9 +385,7 @@ def main():
        and then calling its start_consuming() method."""
 
     # Start a RabbitMQ MessagingService instance
-    msg_service = MessagingService()
-    
-    agent = SmartAgent(msg_service)
+    agent = SmartAgent()
     # act according to argument supplied
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:

@@ -44,7 +44,10 @@ class ViewBuilder(object):
         """Build the very basic information for an instance"""
         instance = {}
         instance['id'] = server.uuid
-        instance['name'] = server.name
+        if hasattr(server,'server_name'):
+            instance['name'] = server.server_name
+        else:
+            instance['name'] = server.name
         instance['status'] = self.get_instance_status(server, guest_states)
         instance['links'] = self._build_links(req, instance)
         return instance
@@ -105,10 +108,6 @@ class ViewBuilder(object):
         """
         instance = self._build_basic(server, req, guest_states)
         instance = self._build_detail(server, req, instance)
-        if not create:
-            # Add Database and root_enabled
-            instance['databases'] = databases
-            instance['rootEnabled'] = root_enabled
 
         return instance
 
@@ -141,7 +140,11 @@ class ViewBuilder(object):
             return 'ERROR'
         else:
             try:
-                state = guest_states[server.id]
+                # This is sort of hacky, but used to handle both DB instance, and Novaclient server objects
+                if hasattr(server,'internal_id'):
+                    state = guest_states[server.internal_id]
+                else:
+                    state = guest_states[server.id]
                 #state = server.status
             except (KeyError, InstanceNotFound):
                 # we set the state to shutdown if not found
