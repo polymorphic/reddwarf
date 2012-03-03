@@ -31,8 +31,8 @@ LOG.setLevel(logging.DEBUG)
 class MessagingService():
     def __init__(self,
                  callback=None,
-                 host_address='15.185.163.167',
-                 exchange_name='nova'):
+                 host_address='15.185.163.167',  #TODO: remove hardcoded IP
+                 exchange_name='nova'):  #TODO: remove hardcoded uid
         self.callback = callback
         self.mq_host = host_address
         self.exchange_name = exchange_name

@@ -19,6 +19,7 @@ __email__ = 'dragosm@hp.com'
 __python_version__ = '2.7.2'
 
 import sys
+import daemon
 import _mysql  # see http://mysql-python.sourceforge.net/MySQLdb.html
 from singleton import Singleton
 import logging
@@ -54,7 +55,7 @@ class DatabaseManager:
             connection = _mysql.connect(host=self.host_name,
                 db=self.database_name,
                 read_default_file=self.config_file)
-        except:
+        except Exception:
             LOG.error('Error connecting to the database: %s',
                 str(sys.exc_info()[0]))
         else:
@@ -65,7 +66,7 @@ class DatabaseManager:
         if self._database_connection:
             try:
                 self._database_connection.close()
-            except:
+            except Exception:
                 LOG.error('Error closing database connection: %s',
                     str(sys.exc_info()[0]))
                 return False
@@ -87,7 +88,7 @@ class DatabaseManager:
         try:
             for command in commands:
                 self._database_connection.query(command)
-        except:
+        except Exception:
             LOG.error('Database error while executing %s: %s',
                 command, str(sys.exc_info()[0]))
         return

@@ -101,7 +101,7 @@ class VerifyManagerAbortsInstanceWhenVolumeFails(InstanceTest):
     def setUp(self):
         """Sets up the client."""
         test_config.volume_service.stop()
-        assert_false(test_config.volume_service.is_running)
+        assert_false(test_config.volume_service.check_once_if_running)
         restart_compute_service(['--reddwarf_volume_time_out=%d'
                                  % VOLUME_TIME_OUT])
         self.init("TEST_FAIL_VOLUME_")

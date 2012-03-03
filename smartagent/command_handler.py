@@ -17,7 +17,7 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-
+import paths
 import _mysql
 from smartagent_persistence import DatabaseManager
 import logging
@@ -29,7 +29,10 @@ import subprocess
 import tarfile
 
 from os import environ
-import swift 
+try:
+    import swift
+except Exception:
+    pass
 import socket
 import string 
 
@@ -82,8 +85,8 @@ class MysqlCommandHandler:
         self.checker = MySqlChecker()
         
         """ sanity check for log folder existence """
-        self.backlog_path = '/home/nova/backup_logs/'
-        self.backup_path = '/var/lib/mysql-backup/'
+        self.backlog_path = paths.backlog_path
+        self.backup_path = paths.backup_path
         
         if not os.path.exists(self.backlog_path):
              try:
@@ -120,7 +123,7 @@ class MysqlCommandHandler:
         
         # Prepare SQL query to UPDATE required records
         sql_delete = \
-            "delete from mysql.user where User = '%s'" % (username)
+            "delete from mysql.user where User = '%s'" % username
         sql_flush = "FLUSH PRIVILEGES"
         sql_commands.append(sql_delete)
         sql_commands.append(sql_flush)
@@ -140,9 +143,8 @@ class MysqlCommandHandler:
         # Prepare SQL query to UPDATE required records
         sql_delete = \
             "drop user '%s'@'%s'" % (username, host)
-        sql_commands = []
-        sql_commands.append(sql_delete)
-       
+        sql_commands = [sql_delete]
+
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
@@ -165,10 +167,8 @@ class MysqlCommandHandler:
             "update mysql.user set Password=PASSWORD('%s') WHERE User='%s'"\
             % (newpassword, username)
         sql_flush = "FLUSH PRIVILEGES"
-        sql_commands = []
-        sql_commands.append(sql_update)
-        sql_commands.append(sql_flush)
-       
+        sql_commands = [sql_update, sql_flush]
+
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
@@ -186,9 +186,8 @@ class MysqlCommandHandler:
         # SQL statement to change agent password 
         sql = "SET PASSWORD FOR '%s'@'localhost'"\
             " PASSWORD('%s')" % (username, newpassword)
-        sql_commands = []
-        sql_commands.append(sql)
-       
+        sql_commands = [sql]
+
         # Open database connection
         try: 
             # Execute the SQL command
@@ -212,10 +211,9 @@ class MysqlCommandHandler:
             return result
         
         sql_create = \
-        "create database `%s`" % (database)
-        sql_commands = []
-        sql_commands.append(sql_create)
-       
+        "create database `%s`" % database
+        sql_commands = [sql_create]
+
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
@@ -234,10 +232,9 @@ class MysqlCommandHandler:
             return result
 
         sql_drop = \
-        "drop database `%s`" % (database)
-        sql_commands = []
-        sql_commands.append(sql_drop)
-       
+        "drop database `%s`" % database
+        sql_commands = [sql_drop]
+
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
@@ -316,7 +313,7 @@ class MysqlCommandHandler:
                     LOG.error("innobackupex run failed; read: %s ",
                         line)
                     return ResultState.FAILED
-        except:
+        except Exception:
             LOG.error("log file does not exist: %s", log_path)
             
             
@@ -327,7 +324,7 @@ class MysqlCommandHandler:
         
         while status !=0 and iteration < TIME_OUT:
             iteration = iteration + 1
-            if status == None:
+            if status is None:
                 LOG.debug('subprocess is still alive; iteration: %d', iteration)
                 time.sleep(5)
                 status = proc.poll()
@@ -421,7 +418,7 @@ class MysqlCommandHandler:
 
             try:
                 cont = swift.st_get_container(opts, container)
-                if len(cont) == 0:
+                if not len(cont):
                     # create container
                     swift.st_create_container(opts, container)
                 swift.st_upload(opts, container, tar_result)
@@ -561,7 +558,7 @@ class MysqlCommandHandler:
             
         try:
             cont = swift.st_get_container(opts, container_name)
-            if len(cont) == 0:
+            if not len(cont):
                 LOG.error('target swift container is empty')
                 result = self.get_response_body_for_apply_snapshot(ResultState.FAILED)
                 LOG.debug('return message body: %s', result)
