@@ -71,7 +71,7 @@ class Controller(object):
                     instance_id = name_value[1]
                     break
         
-        if instance_id is not '':
+        if instance_id and len(instance_id) > 0:
             LOG.debug("Listing snapshots by instance_id %s", instance_id)
             snapshot_list = dbapi.db_snapshot_list_by_user_and_instance(context, user_id, instance_id)
         else:
