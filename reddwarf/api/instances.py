@@ -318,7 +318,9 @@ processing of the result etc.
             #files = None
             userdata = None
 
-            server = self.client.create(instance_name, image_id, flavor_ref, files, 'hpdefault', [sec_group], userdata)
+            keypair = FLAGS.instance_keypair_default
+
+            server = self.client.create(instance_name, image_id, flavor_ref, files, keypair, [sec_group], userdata)
 
             #server = self.server_controller.create(req, body)
             if not server or isinstance(server, faults.Fault)\
