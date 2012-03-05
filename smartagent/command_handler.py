@@ -2,8 +2,7 @@
 
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
-# Copyright 2010 United States Government as represented by the
-# Administrator of the National Aeronautics and Space Administration.
+# Copyright 2012 HP Software, LLC
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -61,8 +60,7 @@ def write_dotmycnf(user='os_admin', password='hpcs'):
     """ Write the .my.cnf file so as the user does not require credentials 
     for the DB """
     # open and write .my.cnf
-    # TODO: get rid of hard-code - directory should be configurable
-    cnf_file_name = os.path.join(environ['HOME'], '.my.cnf')
+    cnf_file_name = os.path.join(paths.mycnf_base, '.my.cnf')
     try:
         with open (cnf_file_name, 'w') as mycf:
             mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
@@ -77,29 +75,25 @@ class MysqlCommandHandler:
     def __init__(self,
                  host_name='localhost',
                  database_name='mysql',
-                 config_file='~/.my.cnf'):
-        self.persistence_agent = DatabaseManager(host_name=host_name
-            , database_name=database_name,
+                 config_file=os.path.join(paths.mycnf_base, '.my.cnf')):
+        self.persistence_agent = DatabaseManager(host_name=host_name,
+            database_name=database_name,
             config_file=config_file)
         self.persistence_agent.open_connection()
         self.checker = MySqlChecker()
-        
-        """ sanity check for log folder existence """
-        self.backlog_path = paths.backlog_path
-        self.backup_path = paths.backup_path
-        
-        if not os.path.exists(self.backlog_path):
+
+        if not os.path.exists(paths.backlog_path):
              try:
-                 os.makedirs(self.backlog_path)
+                 os.makedirs(paths.backlog_path)
              except OSError, e:
                  LOG.debug("There was an error creating %s",
-                     self.backlog_path)
+                     paths.backlog_path)
 
     def create_user(self,
                     username,
                     host='localhost',
                     newpassword=random_string()):
-        """ create a new user """
+        # create a new user
         sql_commands = []
 
         # Prepare SQL query to UPDATE required records
@@ -244,8 +238,6 @@ class MysqlCommandHandler:
             LOG.error("Drop database failed: %s", error)
         return result
 
-    # TODO: dragos to code-review below this line
-
     def get_snapshot_size(self, path):
         return os.path.getsize(path)
 #        snapshot_size = 0
@@ -337,7 +329,7 @@ class MysqlCommandHandler:
             return 'normal'
     
     def create_db_snapshot(self, path_specifier, st_user, st_key, st_auth, container='mysql-backup-dbasdemo'):
-        path = os.path.join(self.backup_path, path_specifier)
+        path = os.path.join(paths.backup_path, path_specifier)
         log_home = os.path.join(self.backlog_path, path_specifier)
         keyword_to_check = "innobackupex: completed OK!"  # TODO: replace with regexp?
         
