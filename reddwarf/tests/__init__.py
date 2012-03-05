@@ -88,8 +88,12 @@ class TestCase(unittest.TestCase):
 class DBTestCase(TestCase):
     def setUp(self):
         super(DBTestCase, self).setUp()
+        
+        if os.path.isfile("unittest.db"):
+            os.remove("unittest.db")
+            
         FLAGS.Reset()
-        FLAGS['sql_connection'].SetDefault("sqlite:///:memory:")
+        FLAGS['sql_connection'].SetDefault("sqlite:///unittest.db")
         
         metaModel = []
         for name, obj in inspect.getmembers(models):

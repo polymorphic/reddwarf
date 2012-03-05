@@ -81,9 +81,9 @@ class OSClient(object):
         
         LOG.debug("Found IP to Assign: %s" + str(ip) )
 
-        # Fail after 5 attempts
+        # Fail after 30 attempts
         success = False        
-        for i in range(5):
+        for i in range(30):
             try:
                 LOG.debug('Assign public IP, Attempt %d', i)
                 self.client.servers.add_floating_ip(id, ip)
