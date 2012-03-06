@@ -21,6 +21,7 @@ import lockfile
 import logging
 import sys
 import time
+import paths
 from service import Service
 
 __author__ = 'dragosmanolescu'
@@ -30,8 +31,7 @@ __python_version__ = '2.7.2'
 logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
-WORKING_DIR = '/Users/dragosmanolescu/tmp'  #TODO: change
-PID_FILENAME = os.path.join(WORKING_DIR, 'smartagent.pid')  #TODO: refactor
+PID_FILENAME = os.path.join(paths.smartagent_working_dir, paths.smartagent_name + '.pid')  #TODO: refactor
 
 def main():
     """Activates the smart agent by instantiating an instance of SmartAgent
@@ -45,8 +45,8 @@ def main():
             stop()
         elif 'restart' == sys.argv[1]:
             restart()
-        elif 'run' == sys.argv[1]:
-            start()
+        elif 'status' == sys.argv[1]:
+            status()
         else:
             print "unknown command"
             sys.exit(2)
@@ -75,6 +75,7 @@ def start():
         signal.SIGHUP: smart_agent_service.restart  #TODO: implement
         }
     smart_agent_service.setup()
+    print "Starting %s" % paths.smartagent_name
     try:
         with context:  # daemonize
             smart_agent_service.start()
@@ -102,6 +103,7 @@ def _is_process_running(pid):
         return True
 
 def stop():
+    print "Stopping %s" % paths.smartagent_name
     pid = _get_daemon_pid()
     if pid:
         if _is_process_running(pid):
@@ -110,7 +112,7 @@ def stop():
                 for i in range(1,10):
                     os.kill(pid, signal.SIGTERM)
                     time.sleep(1)
-                LOGGER.error("Can't kill daemon (PID %d)", pid)
+                print "Can't kill daemon (PID %d)" % pid
                 sys.exit(os.EX_OSERR)
             except OSError as os_error:
                 pass
@@ -119,24 +121,35 @@ def stop():
             os.remove(PID_FILENAME)
         assert(not os.path.isfile(PID_FILENAME))
     else:
-        LOGGER.error("No/invalid PID file")
+        print "No/invalid PID file"
         sys.exit(os.EX_OSFILE)
 
 
 def restart():
+    print "Restaring %s" % paths.smartagent_name
     pid = _get_daemon_pid()
     if pid:
         try:
             os.kill(pid, signal.SIGHUP)
         except OSError as os_error:
-            LOGGER.error("Can't restart daemon (PID %d)", pid)
+            print "Can't restart daemon (PID %d)", pid
             sys.exit(os.EX_OSERR)
     else:
-        LOGGER.error("No/invalid PID file")
+        print "No/invalid PID file"
         sys.exit(os.EX_OSFILE)
 
 def status():
-    pass  #TODO: implement
+    print "%s status: " % paths.smartagent_name,
+    pid = _get_daemon_pid()
+    if not pid:
+        print "not running"
+    else:
+        try:
+            os.kill(pid, 0)
+        except OSError as os_error:
+            print "running but process %d non responsive" % pid
+            sys.exit(os.EX_OSERR)
+        print "running, PID=%d" % pid
 
 if __name__ == '__main__':
     main()

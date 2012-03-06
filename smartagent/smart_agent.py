@@ -20,12 +20,13 @@ from result_state import ResultState
 from check_mysql_status import MySqlChecker
 from command_handler import MysqlCommandHandler
 from smartagent_messaging import MessagingService
+import paths
 
 __author__ = 'dragosmanolescu'
 __email__ = 'dragosm@hp.com'
 __python_version__ = '2.7.2'
 
-AGENT_HOME = '/home/nova'  #TODO: remove hardcoded path
+AGENT_HOME = paths.smartagent_working_dir
 AGENT_CONFIG = os.path.join(AGENT_HOME,'agent.config')
 
 logging.basicConfig(level=logging.DEBUG,

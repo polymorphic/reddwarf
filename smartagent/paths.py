@@ -24,3 +24,4 @@ backup_path = '/var/lib/mysql-backup/'
 smartagent_working_dir = '/home/nova'
 mycnf_base = environ['HOME']
 mysql_pid_file_path = '/var/lib/mysql'
+smartagent_name = 'smartagent'
