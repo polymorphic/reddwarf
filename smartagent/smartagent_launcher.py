@@ -28,10 +28,7 @@ __author__ = 'dragosmanolescu'
 __email__ = 'dragosm@hp.com'
 __python_version__ = '2.7.2'
 
-logging.basicConfig(level=logging.DEBUG)
-LOGGER = logging.getLogger(__name__)
-
-PID_FILENAME = os.path.join(paths.smartagent_working_dir, paths.smartagent_name + '.pid')  #TODO: refactor
+PID_FILENAME = os.path.join(paths.smartagent_working_dir, paths.smartagent_name + '.pid')
 
 def main():
     """Activates the smart agent by instantiating an instance of SmartAgent
