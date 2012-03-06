@@ -18,7 +18,6 @@ import os
 import signal
 import daemon
 import lockfile
-import logging
 import sys
 import time
 import paths
@@ -56,16 +55,15 @@ def start():
     pid = _get_daemon_pid()
     if pid:
         if _is_process_running(pid):
-            LOGGER.error('smartagent daemon already running')
+            print 'smartagent daemon already running'
             sys.exit(os.EX_USAGE)
         else:
             # stale PID file
             os.remove(PID_FILENAME)
-    LOGGER.debug('setting up the daemon')
-    smart_agent_service = Service(WORKING_DIR)
+    smart_agent_service = Service(paths.smartagent_working_dir)
     context = daemon.DaemonContext(
-        working_directory=WORKING_DIR,
-        pidfile=lockfile.FileLock(str(os.path.join(WORKING_DIR,
+        working_directory=paths.smartagent_working_dir,
+        pidfile=lockfile.FileLock(str(os.path.join(paths.smartagent_working_dir,
             'smartagent_launcher'))))
     context.signal_map = {
         signal.SIGTERM: smart_agent_service.shutdown,
