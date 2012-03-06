@@ -52,14 +52,14 @@ class ReaperShouldKillOlderUnattachedVolumes(InstanceTest):
     def set_up(self):
         """Sets up the client."""
         test_config.compute_service.stop()
-        assert_false(test_config.compute_service.is_running)
+        assert_false(test_config.compute_service.check_once_if_running)
         self.init("TEST_FAIL_VOLUME_")
         self.volume_api = volume.API()
 
     @after_class(always_run=True)
     def tearDown(self):
         """Be nice to other tests and restart the compute service normally."""
-        if not test_config.compute_service.is_running:
+        if not test_config.compute_service.check_once_if_running:
             test_config.compute_service.start()
             wait_for_compute_service()
 

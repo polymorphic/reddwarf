@@ -2,8 +2,7 @@
 
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
-# Copyright 2010 United States Government as represented by the
-# Administrator of the National Aeronautics and Space Administration.
+# Copyright 2012 HP Software, LLC
 # All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -17,7 +16,7 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-
+import paths
 import _mysql
 from smartagent_persistence import DatabaseManager
 import logging
@@ -29,7 +28,10 @@ import subprocess
 import tarfile
 
 from os import environ
-import swift 
+try:
+    import swift
+except Exception:
+    pass
 import socket
 import string 
 
@@ -58,8 +60,7 @@ def write_dotmycnf(user='os_admin', password='hpcs'):
     """ Write the .my.cnf file so as the user does not require credentials 
     for the DB """
     # open and write .my.cnf
-    # TODO: get rid of hard-code - directory should be configurable
-    cnf_file_name = os.path.join(environ['HOME'], '.my.cnf')
+    cnf_file_name = os.path.join(paths.mycnf_base, '.my.cnf')
     try:
         with open (cnf_file_name, 'w') as mycf:
             mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
@@ -74,29 +75,25 @@ class MysqlCommandHandler:
     def __init__(self,
                  host_name='localhost',
                  database_name='mysql',
-                 config_file='~/.my.cnf'):
-        self.persistence_agent = DatabaseManager(host_name=host_name
-            , database_name=database_name,
+                 config_file=os.path.join(paths.mycnf_base, '.my.cnf')):
+        self.persistence_agent = DatabaseManager(host_name=host_name,
+            database_name=database_name,
             config_file=config_file)
         self.persistence_agent.open_connection()
         self.checker = MySqlChecker()
-        
-        """ sanity check for log folder existence """
-        self.backlog_path = '/home/nova/backup_logs/'
-        self.backup_path = '/var/lib/mysql-backup/'
-        
-        if not os.path.exists(self.backlog_path):
+
+        if not os.path.exists(paths.backlog_path):
              try:
-                 os.makedirs(self.backlog_path)
+                 os.makedirs(paths.backlog_path)
              except OSError, e:
                  LOG.debug("There was an error creating %s",
-                     self.backlog_path)
+                     paths.backlog_path)
 
     def create_user(self,
                     username,
                     host='localhost',
                     newpassword=random_string()):
-        """ create a new user """
+        # create a new user
         sql_commands = []
 
         # Prepare SQL query to UPDATE required records
@@ -120,7 +117,7 @@ class MysqlCommandHandler:
         
         # Prepare SQL query to UPDATE required records
         sql_delete = \
-            "delete from mysql.user where User = '%s'" % (username)
+            "delete from mysql.user where User = '%s'" % username
         sql_flush = "FLUSH PRIVILEGES"
         sql_commands.append(sql_delete)
         sql_commands.append(sql_flush)
@@ -140,9 +137,8 @@ class MysqlCommandHandler:
         # Prepare SQL query to UPDATE required records
         sql_delete = \
             "drop user '%s'@'%s'" % (username, host)
-        sql_commands = []
-        sql_commands.append(sql_delete)
-       
+        sql_commands = [sql_delete]
+
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
@@ -165,10 +161,8 @@ class MysqlCommandHandler:
             "update mysql.user set Password=PASSWORD('%s') WHERE User='%s'"\
             % (newpassword, username)
         sql_flush = "FLUSH PRIVILEGES"
-        sql_commands = []
-        sql_commands.append(sql_update)
-        sql_commands.append(sql_flush)
-       
+        sql_commands = [sql_update, sql_flush]
+
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
@@ -186,9 +180,8 @@ class MysqlCommandHandler:
         # SQL statement to change agent password 
         sql = "SET PASSWORD FOR '%s'@'localhost'"\
             " PASSWORD('%s')" % (username, newpassword)
-        sql_commands = []
-        sql_commands.append(sql)
-       
+        sql_commands = [sql]
+
         # Open database connection
         try: 
             # Execute the SQL command
@@ -212,10 +205,9 @@ class MysqlCommandHandler:
             return result
         
         sql_create = \
-        "create database `%s`" % (database)
-        sql_commands = []
-        sql_commands.append(sql_create)
-       
+        "create database `%s`" % database
+        sql_commands = [sql_create]
+
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
@@ -234,10 +226,9 @@ class MysqlCommandHandler:
             return result
 
         sql_drop = \
-        "drop database `%s`" % (database)
-        sql_commands = []
-        sql_commands.append(sql_drop)
-       
+        "drop database `%s`" % database
+        sql_commands = [sql_drop]
+
         # Open database connection
         try:
             self.persistence_agent.execute_sql_commands(sql_commands)
@@ -246,8 +237,6 @@ class MysqlCommandHandler:
             result = ResultState.FAILED
             LOG.error("Drop database failed: %s", error)
         return result
-
-    # TODO: dragos to code-review below this line
 
     def get_snapshot_size(self, path):
         return os.path.getsize(path)
@@ -316,7 +305,7 @@ class MysqlCommandHandler:
                     LOG.error("innobackupex run failed; read: %s ",
                         line)
                     return ResultState.FAILED
-        except:
+        except Exception:
             LOG.error("log file does not exist: %s", log_path)
             
             
@@ -327,7 +316,7 @@ class MysqlCommandHandler:
         
         while status !=0 and iteration < TIME_OUT:
             iteration = iteration + 1
-            if status == None:
+            if status is None:
                 LOG.debug('subprocess is still alive; iteration: %d', iteration)
                 time.sleep(5)
                 status = proc.poll()
@@ -340,7 +329,7 @@ class MysqlCommandHandler:
             return 'normal'
     
     def create_db_snapshot(self, path_specifier, st_user, st_key, st_auth, container='mysql-backup-dbasdemo'):
-        path = os.path.join(self.backup_path, path_specifier)
+        path = os.path.join(paths.backup_path, path_specifier)
         log_home = os.path.join(self.backlog_path, path_specifier)
         keyword_to_check = "innobackupex: completed OK!"  # TODO: replace with regexp?
         
@@ -421,7 +410,7 @@ class MysqlCommandHandler:
 
             try:
                 cont = swift.st_get_container(opts, container)
-                if len(cont) == 0:
+                if not len(cont):
                     # create container
                     swift.st_create_container(opts, container)
                 swift.st_upload(opts, container, tar_result)
@@ -561,7 +550,7 @@ class MysqlCommandHandler:
             
         try:
             cont = swift.st_get_container(opts, container_name)
-            if len(cont) == 0:
+            if not len(cont):
                 LOG.error('target swift container is empty')
                 result = self.get_response_body_for_apply_snapshot(ResultState.FAILED)
                 LOG.debug('return message body: %s', result)

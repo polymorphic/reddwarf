@@ -1,4 +1,4 @@
-# Copyright 2012 OpenStack, LLC
+# Copyright 2012 HP Software, LLC
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -31,8 +31,8 @@ LOG.setLevel(logging.DEBUG)
 class MessagingService():
     def __init__(self,
                  callback=None,
-                 host_address='15.185.163.167',
-                 exchange_name='nova'):
+                 host_address='15.185.163.167',  #TODO: remove hardcoded IP
+                 exchange_name='nova'):  #TODO: remove hardcoded uid
         self.callback = callback
         self.mq_host = host_address
         self.exchange_name = exchange_name
