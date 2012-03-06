@@ -44,31 +44,23 @@ class ViewBuilder(object):
         """Build the very basic information for an instance"""
         instance = {}
         instance['id'] = server.uuid
-        if hasattr(server,'server_name'):
-            instance['name'] = server.server_name
-        else:
-            instance['name'] = server.name
-        instance['status'] = self.get_instance_status(server, guest_states)
+        instance['name'] = server.server_name
+        
+        remote_id = server.internal_id
+            
+        instance['status'] = self.get_instance_status(remote_id, guest_states)
         instance['links'] = self._build_links(req, instance)
         return instance
 
     def _build_detail(self, server, req, instance):
         """Build out a more detailed view of the instance"""
-        flavor_view = flavors.ViewBuilder(_base_url(req), _project_id(req))
-        instance['flavor'] = server.flavor['id']
-        
-        LOG.error("Flavor object: %s" % instance['flavor'])
-        #instance['flavor']['links'] = flavor_view._build_links(instance['flavor'])
-        instance['created'] = server.created
-        instance['updated'] = server.updated
-        # Add the hostname
-        if server.accessIPv4:
-            instance['hostname'] = server.accessIPv4
 
-        # Add volume information
-#        dbvolume = self.build_volume(server)
-#        if dbvolume:
-#            instance['volume'] = dbvolume
+        instance['created'] = server.created_at
+        instance['updated'] = server.updated_at
+
+        # Add the hostname
+        instance['hostname'] = server.access_ip_v4
+
         return instance
 
     @staticmethod
@@ -101,8 +93,7 @@ class ViewBuilder(object):
         instance = self._build_detail(server, req, instance)
         return instance
 
-    def build_single(self, server, req, guest_states, databases=None,
-                     root_enabled=False, create=False):
+    def build_single(self, server, req, guest_states):
         """
         Given a server (obtained from the servers API) returns an instance.
         """
@@ -112,44 +103,19 @@ class ViewBuilder(object):
         return instance
 
     @staticmethod
-    def build_volume(server):
-        """Given a server dict returns the instance volume dict."""
-        try:
-            volumes = server['volumes']
-            volume_dict = volumes[0]
-        except (KeyError, IndexError):
-            return None
-        if len(volumes) > 1:
-            error_msg = {'instanceId': server['id'],
-                         'msg': "> 1 volumes in the underlying instance!"}
-            LOG.error(error_msg)
-            notifier.notify(notifier.publisher_id("reddwarf-api"),
-                            'reddwarf.instance.list', notifier.ERROR,
-                            error_msg)
-        return {'size': volume_dict['size']}
-
-    @staticmethod
-    def get_instance_status(server, guest_states):
+    def get_instance_status(id, guest_states):
         """Figures out what the instance status should be.
 
         First looks at the server status, then to a dictionary mapping guest
         IDs to their states.
 
         """
-        if server.status == 'ERROR':
-            return 'ERROR'
-        else:
-            try:
-                # This is sort of hacky, but used to handle both DB instance, and Novaclient server objects
-                if hasattr(server,'internal_id'):
-                    state = guest_states[server.internal_id]
-                else:
-                    state = guest_states[server.id]
-                #state = server.status
-            except (KeyError, InstanceNotFound):
-                # we set the state to shutdown if not found
-                state = power_state.SHUTDOWN
-            return common.dbaas_mapping.get(state, None)
+        try:
+            state = guest_states[id]
+        except (KeyError, InstanceNotFound):
+            # we set the state to shutdown if not found
+            state = power_state.SHUTDOWN
+        return common.dbaas_mapping.get(state, None)
 
 
 class MgmtViewBuilder(ViewBuilder):
