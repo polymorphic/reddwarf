@@ -300,7 +300,7 @@ processing of the result etc.
                         
             LOG.debug('%s',conf_file)
             
-            files = { '/home/nova/agent.conf': conf_file }
+            files = { '/home/nova/agent.config': conf_file }
             #files = None
             userdata = None
 
