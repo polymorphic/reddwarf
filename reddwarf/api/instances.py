@@ -32,6 +32,7 @@
 import copy
 import logging
 import json
+import os
 from webob import exc
 
 from nova import compute
@@ -155,7 +156,6 @@ class Controller(object):
         LOG.debug("Remote ID: " + str(internal_id))
 
         osclient_response = self.client.delete(internal_id)
-        print osclient_response
         if isinstance(osclient_response, Exception):
             return osclient_response
         
@@ -236,12 +236,12 @@ class Controller(object):
         LOG.debug("%s - %s", req.environ, req.body)
         
         context = req.environ['nova.context']
-        id = dbapi.localid_from_uuid(instance_id)
-        LOG.debug("Local ID: " + str(id))
+        remote_id = dbapi.internalid_from_uuid(instance_id)
+        LOG.debug("Remote ID: " + str(remote_id))
         
-        server_response = self.client.show(instance_id)
-        #self.client.restart(server_response.id)
-        self.client.restart(instance_id)
+        server_response = self.client.restart(remote_id)
+        print server_response
+        
         server_response = self.client.show(instance_id)
         guest_state = self.get_guest_state_mapping([server_response.id])
         LOG.info("Called OSClient.restart().  Response/guest state: %s - %s", server_response, guest_state)
@@ -313,6 +313,12 @@ processing of the result etc.
             files = { '/home/nova/agent.config': conf_file }
             #files = None
             userdata = None
+            init_script = FLAGS.instance_initscript
+            if init_script and len(init_script) > 0:
+                cwd = os.getcwd()
+                print ( cwd )
+                init_script_fqn = os.path.join(cwd, init_script)
+                userdata = open(init_script_fqn)
 
             keypair = FLAGS.instance_keypair_default
 

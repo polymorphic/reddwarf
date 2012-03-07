@@ -283,6 +283,8 @@ DEFINE_string('swiftclient_key', 'admin', 'Novaclient Access Key')
 
 DEFINE_string('instance_keypair_default', 'dbas', 'Default keypair for mysql instances')
 
+DEFINE_string('instance_initscript', '', 'Cloud-init script to be used when launching instances')
+
 # NOTE(sirp): my_ip interpolation doesn't work within nested structures
 DEFINE_list('glance_api_servers',
             ['%s:9292' % _get_my_ip()],
