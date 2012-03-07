@@ -45,7 +45,7 @@ EOF
         # set up of LVM
         pvcreate /dev/vdb1
         vgcreate data /dev/vdb1
-        lvcreate --size 50G --name mysql-data data
+        lvcreate --size 20G --name mysql-data data
 
         # format XFS
         mkfs.xfs /dev/data/mysql-data
