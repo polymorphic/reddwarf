@@ -171,19 +171,19 @@ class APIRouter(wsgi.Router):
         mapper.resource("snapshot", "snapshots",
                         controller=snapshots.create_resource())
 
-#        mapper.resource("flavor", "flavors",
-#                        controller=flavors.create_resource(),
-#                        collection={'detail': 'GET'})
-#
-#        mapper.resource("database", "databases",
-#                        controller=databases.create_resource(),
-#                        parent_resource=dict(member_name='instance',
-#                        collection_name='instances'))
-#
-#        mapper.resource("user", "users",
-#                        controller=users.create_resource(),
-#                        parent_resource=dict(member_name='instance',
-#                        collection_name='instances'))
+        mapper.resource("flavor", "flavors",
+                        controller=flavors.create_resource(),
+                        collection={'detail': 'GET'})
+
+        mapper.resource("database", "databases",
+                        controller=databases.create_resource(),
+                        parent_resource=dict(member_name='instance',
+                        collection_name='instances'))
+
+        mapper.resource("user", "users",
+                        controller=users.create_resource(),
+                        parent_resource=dict(member_name='instance',
+                        collection_name='instances'))
 
         # Using connect instead of resource due to the incompatibility
         # for delete without providing an id.
