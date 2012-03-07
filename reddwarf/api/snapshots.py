@@ -93,7 +93,7 @@ class Controller(object):
         uri = db_snapshot.storage_uri
         
         #Only delete from swift if we have a URI
-        if len(uri) > 0:
+        if uri and len(uri) > 0:
             container, file = uri.split('/',2)
         
             LOG.debug("Deleting from Container: %s - File: %s", container, file)
