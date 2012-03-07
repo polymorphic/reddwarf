@@ -65,8 +65,9 @@ class HPCSTest(test.TestCase):
         
         if(response.status == 200) : 
             jsonResponse = json.loads(responseContent)
-            global auth_token, authenticated
+            global auth_token, authenticated, COMPUTE_PATH
             auth_token = jsonResponse['access']['token']['id']
+            COMPUTE_PATH = "/v1.1/%s/" % jsonResponse['access']['token']['tenant']['id']
             authenticated = True
             
         
@@ -98,9 +99,8 @@ class HPCSTest(test.TestCase):
         responseContent = response.read()
         
         #print(responseContent)
-        
-        self.assertEqual(response.status, 200)        
-        
+        self.assertEqual(response.status, 200)    
+     
         
     def test_instances_list(self):
         """Test to get list of instances from nova"""
@@ -108,11 +108,11 @@ class HPCSTest(test.TestCase):
         
         req = httplib2.HTTPSConnectionWithTimeout(COMPUTE_URL)
         req.request("GET", COMPUTE_PATH + "servers", "", self.tokenHeader())
+        print "GET", COMPUTE_PATH + "servers", "", self.tokenHeader()
         response = req.getresponse()
         responseContent = response.read()
         
         #print(responseContent)
-
         self.assertEqual(response.status, 200)
         
         
@@ -126,14 +126,9 @@ class HPCSTest(test.TestCase):
         responseContent = response.read()
         
         #print(responseContent)
-
         self.assertEqual(response.status, 200)
         
-    
-#    def test_instances_create(self):
-#        """Test to create an instance on nova"""
-#        
-#    
+       
 #    def test_instances_update(self):
 #        """Test to update information on an instance"""
 #        
