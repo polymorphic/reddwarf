@@ -106,6 +106,8 @@ user=root
 password=hpcs
 " > /home/nova/.my.cnf
 
+ln -s /home/nova/.my.cnf /root/.my.cnf
+
 ######## TEMPORARY agent.config file ########
 #echo "[messaging]
 #rabbit_host: 15.185.163.167

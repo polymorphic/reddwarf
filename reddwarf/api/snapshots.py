@@ -123,7 +123,7 @@ class Controller(object):
         # Mark snapshot deleted in DB
         dbapi.db_snapshot_delete(context, id)
 
-        return exc.HTTPOk()
+        return exc.HTTPNoContent()
 
     def create(self, req, body):
         """ Creates a Snapshot """
