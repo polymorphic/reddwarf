@@ -526,12 +526,15 @@ def db_snapshot_create(context, values):
 def db_snapshot_get(uuid):
     LOG.debug("Fetching Snapshot record with uuid=%s." % uuid)
     session = get_session()
-    result = session.query(models.DbSnapShots).\
-                         filter_by(uuid=uuid).\
-                         filter_by(deleted=False).\
-                         first()
-    if not result:
-        raise exception.SnapshotNotFound(snapshot_id=uuid)
+    try:
+        result = session.query(models.DbSnapShots).\
+                             filter_by(uuid=uuid).\
+                             filter_by(deleted=False).\
+                             one()
+    except NoResultFound:
+        LOG.debug("No such snapshot found.")
+        return None
+
     return result
 
 def db_snapshot_delete(context, uuid):
