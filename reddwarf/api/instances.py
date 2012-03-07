@@ -51,6 +51,7 @@ from smartagent import result_state
 from nova.notifier import api as notifier
 
 from novaclient.v1_1 import servers as novaclientservers
+from novaclient import exceptions as novaclient_exceptions
 import novaclient
 
 from reddwarf import exception
@@ -154,10 +155,13 @@ class Controller(object):
         
         internal_id = dbapi.internalid_from_uuid(id)
         LOG.debug("Remote ID: " + str(internal_id))
-
-        osclient_response = self.client.delete(internal_id)
-        if isinstance(osclient_response, Exception):
-            return osclient_response
+        
+        try:
+            self.client.delete(internal_id)
+        except novaclient_exceptions.NotFound as e:
+            return exc.HTTPNotFound(e)
+        else:
+            return exc.HTTPInternalServerError()
         
         dbapi.instance_delete(id)
         return exc.HTTPAccepted()
