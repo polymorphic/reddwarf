@@ -29,15 +29,16 @@ __python_version__ = '2.7.2'
 AGENT_HOME = paths.smartagent_working_dir
 AGENT_CONFIG = os.path.join(AGENT_HOME,'agent.config')
 
-logging.basicConfig(level=logging.DEBUG,
-    format='%(asctime)s %(levelname)8s %(message)s',
-    filemode='a')
-LOG = logging.getLogger(__name__)
-
-
 class SmartAgent:
-    def __init__(self):
-    # messaging
+    def __init__(self, logger=None):
+        # logging
+        if logger is None:
+            self.logger = logging.getLogger(__name__)
+            logging.basicConfig(level=logging.DEBUG,
+                format='%(asctime)s %(levelname)8s %(message)s')
+        else:
+            self.logger = logger
+        # messaging
         mq_conf = self._load_config("messaging")
         if not mq_conf:
             self.messaging = MessagingService()    # using default MQ host
@@ -84,9 +85,9 @@ class SmartAgent:
                        "args": {'hostname': hostname, 'state': self.__get_mysql_status()}}
             try:
                 self.messaging.phone_home(message)
-                LOG.debug('Initial DB status checked and phone home message sent: %s', message)
+                self.logger.debug('Initial DB status checked and phone home message sent: %s', message)
             except Exception as err:
-                LOG.error("Failed to connect to MQ due to channel not available: %s", err)
+                self.logger.error("Failed to connect to MQ due to channel not available: %s", err)
         else:
             # apply snapshot if the instance is configured to do so
             result = self.handler.apply_db_snapshot(self.snapshot_conf['snapshot_uri'],
@@ -95,25 +96,25 @@ class SmartAgent:
                 self.snapshot_conf['swift_auth_url'])
             try:
                 self.messaging.phone_home(result)
-                LOG.debug('Initial snapshot applied and phone home message sent: %s', result)
+                self.logger.debug('Initial snapshot applied and phone home message sent: %s', result)
             except Exception as err:
-                LOG.error("Failed to connect to MQ due to channel not available: %s", err)
+                self.logger.error("Failed to connect to MQ due to channel not available: %s", err)
             # start listening and consuming rpc messages from API Server
         try:
             self.messaging.start_consuming()
         except Exception as err:
-            LOG.error("Error processing RPC request: %s", err)
+            self.logger.error("Error processing RPC request: %s", err)
             pass
 
     def create_database_instance(self, msg):
         """ This will call the method that creates a database instance"""
-        LOG.debug('Functionality not implemented')
+        self.logger.debug('Functionality not implemented')
         result = None
         return result
 
     def delete_database_instance(self, msg):
         """ This will call the method that deletes a database instance"""
-        LOG.debug('Functionality not implemented')
+        self.logger.debug('Functionality not implemented')
         result = None
         return result
 
@@ -129,7 +130,7 @@ class SmartAgent:
 
     def restart_database_instance(self, msg):
         """ This will call the method that restarts the database instance """
-        LOG.debug('Functionality not implemented')
+        self.logger.debug('Functionality not implemented')
         result = None
         return result
 
@@ -173,7 +174,7 @@ class SmartAgent:
 
     def get_system_info(self):
         """ This calls the method to get system OS information """
-        LOG.debug('System info')
+        self.logger.debug('System info')
         hostname = os.uname()[1]
         unumber = os.getuid()
         pnumber = os.getpid()
@@ -182,12 +183,12 @@ class SmartAgent:
         now = time.time()
         means = time.ctime(now)
         # TODO: assemble into string and inject in response
-        LOG.debug("Hostname: %s", hostname)
-        LOG.debug("User ID: %s", unumber)
-        LOG.debug("Process ID: %s", pnumber)
-        LOG.debug("Current Directory: %s", where)
-        LOG.debug("System information: %s", what)
-        LOG.debug("Time is now: %s", means)
+        self.logger.debug("Hostname: %s", hostname)
+        self.logger.debug("User ID: %s", unumber)
+        self.logger.debug("Process ID: %s", pnumber)
+        self.logger.debug("Current Directory: %s", where)
+        self.logger.debug("System information: %s", what)
+        self.logger.debug("Time is now: %s", means)
         result = None
         return result
 
@@ -216,9 +217,9 @@ class SmartAgent:
         try:
             method = msg['method']
         except KeyError:
-            LOG.error('Message missing "method" element: %s', msg)
+            self.logger.error('Message missing "method" element: %s', msg)
             return {'result': result, 'failure': 'missing_method'}
-        LOG.debug ('Dispatching %s', method)
+        self.logger.debug ('Dispatching %s', method)
         #  internal API
         if method == 'create_instance':
             result = self.create_database_instance(msg)
