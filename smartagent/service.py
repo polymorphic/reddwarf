@@ -65,7 +65,6 @@ class Service:
             self.logger.error('Error creating PID file %s', self.pid_filename)
         else:
             self.logger.debug('Daemon PID written to %s', self.pid_filename)
-        # Do real work here
         smart_agent = SmartAgent()
         smart_agent.run()
 
@@ -78,7 +77,8 @@ class Service:
         self.logger.close()
 
     def restart(self, signal_number, stack_frame):
-        self.logger.debug('Restarting')  #TODO: implement
+        self.logger.debug('SIGHUP received')
+
 
 
 if __name__ =='__main__':
