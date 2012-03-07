@@ -224,7 +224,7 @@ class Controller(object):
         db_instance.access_ip_v4 = ip
         
         guest_state = self.get_guest_state_mapping([remote_id])
-        instance = self.view.build_single(db_instance, req, guest_state)
+        instance = self.view.build_single(db_instance, req, guest_state, create=True)
 
         return { 'instance': instance }
     
