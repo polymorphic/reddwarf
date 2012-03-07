@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright 2012 OpenStack, LLC
+# Copyright 2012 HP Software, LLC
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -25,6 +25,7 @@ import errno
 import socket
 import re
 import subprocess
+import paths
 import logging
 logging.basicConfig()
 
@@ -40,7 +41,7 @@ class MySqlChecker:
     def __init__(self,
                  host_name='127.0.0.1',
                  port_number=3306,
-                 pid_file_path='/var/lib/mysql'):
+                 pid_file_path=paths.mysql_pid_file_path):
         self.host_name = host_name
         self.port_number = port_number
         self.pid_file_path = pid_file_path

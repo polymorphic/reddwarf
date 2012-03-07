@@ -135,26 +135,14 @@ class Controller(object):
         """ Returns instance details by instance id """
         LOG.info("Get Instance by ID - %s", id)
         LOG.debug("%s - %s", req.environ, req.body)
-        instance_id = dbapi.localid_from_uuid(id)
-        LOG.debug("Local ID: " + str(instance_id))
-        #server_response = self.server_controller.show(req, instance_id)
-        server_response = self.client.show(id)
-        if isinstance(server_response, Exception):
-            return server_response # Just return the exception to throw it
-        context = req.environ['nova.context']
-        #server = server_response['server']
 
-        guest_state = self.get_guest_state_mapping([server_response.id])
-        databases = None
-        root_enabled = None
-        if guest_state:
-            databases, root_enabled = self._get_guest_info(context, server_response.id,
-                guest_state[server_response.id])
-        instance = self.view.build_single(server_response,
-            req,
-            guest_state,
-            databases=databases,
-            root_enabled=root_enabled)
+        db_instance = dbapi.instance_from_uuid(id)
+        
+        remote_id = db_instance.internal_id
+        guest_state = self.get_guest_state_mapping([remote_id])
+
+        instance = self.view.build_single(db_instance, req, guest_state)
+        
         LOG.debug("instance - %s" % instance)
         return {'instance': instance}
 
@@ -163,14 +151,15 @@ class Controller(object):
         LOG.info("Delete Instance by ID - %s", id)
         LOG.debug("%s - %s", req.environ, req.body)
         
-        server_response = self.client.show(id)
-        LOG.debug("Instance %s pre-delete: %s", id, server_response)
-        
-        osclient_response = self.client.delete(server_response.id)
+        internal_id = dbapi.internalid_from_uuid(id)
+        LOG.debug("Remote ID: " + str(internal_id))
+
+        osclient_response = self.client.delete(internal_id)
+        print osclient_response
         if isinstance(osclient_response, Exception):
             return osclient_response
+        
         server_response = self.client.show(id)
-        #guest_state = self.get_guest_state_mapping([server_response.id])
         LOG.info("Called OSClient.delete().  Server response: %s", server_response)
         
         if 'deleting' not in server_response.status:
@@ -191,15 +180,17 @@ class Controller(object):
 
         context = req.environ['nova.context']
         LOG.debug(" BODY Instance Name: " + body['instance']['name'])
+        
         instance_name = body['instance']['name']
+
+        # Generate a UUID and set as the hostname, to guarantee unique
+        # routing key for Agent
+        host_name = str(utils.gen_uuid());
 
         # This should be fetched from Flags, image should contain mysqld and agent
         image_id = FLAGS.default_image
         flavor_ref = FLAGS.default_instance_type
         
-        # Generate a UUID and set as the hostname, to guarantee unique
-        # routing key for Agent
-        host_name = str(utils.gen_uuid());
 
         storage_uri = None
         
@@ -208,29 +199,34 @@ class Controller(object):
             if snapshot_id and len(snapshot_id) > 0:
                 db_snapshot = dbapi.db_snapshot_get(snapshot_id)
                 storage_uri = db_snapshot.storage_uri
-            
+        
+        # Create the Server remotely    
         server_resp = self._try_create_server(req, host_name, image_id, flavor_ref, storage_uri)
         
+        # Capture response values
         instance_id = server_resp.uuid
-        local_id = str(server_resp.id)
+        remote_id = str(server_resp.id)
 
-        LOG.info("Created server with uuid: " + instance_id + " and local id: " + local_id)
+        LOG.info("Created server with uuid: " + instance_id + " and remote id: " + remote_id)
 
-        dbapi.instance_create(context.user_id, context.project_id, instance_name, server_resp)
+        # Create DB Entry
+        db_instance = dbapi.instance_create(context.user_id, context.project_id, instance_name, server_resp)
         
         # Need to assign public IP, but also need to wait for Networking
-        ip = self.client.assign_public_ip(local_id)
+        ip = self.client.assign_public_ip(remote_id)
         
         dbapi.instance_set_public_ip(instance_id, ip)
-        dbapi.guest_status_create(local_id)
+        dbapi.guest_status_create(remote_id)
 
         # Nova doesn't populate the public IP in the server Response
-        server_resp.accessIPv4 = ip
-        server_resp.name = instance_name
+        #server_resp.accessIPv4 = ip
+        #print server_resp.accessIPv4
+        #server_resp.name = instance_name
         
-        guest_state = self.get_guest_state_mapping([local_id])
-        instance = self.view.build_single(server_resp, req,
-            guest_state, create=True)
+        db_instance.access_ip_v4 = ip
+        
+        guest_state = self.get_guest_state_mapping([remote_id])
+        instance = self.view.build_single(db_instance, req, guest_state)
 
         return { 'instance': instance }
     
@@ -314,7 +310,7 @@ processing of the result etc.
                         
             LOG.debug('%s',conf_file)
             
-            files = { '/home/nova/agent.conf': conf_file }
+            files = { '/home/nova/agent.config': conf_file }
             #files = None
             userdata = None
 

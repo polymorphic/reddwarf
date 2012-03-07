@@ -139,9 +139,14 @@ class Controller(object):
             'project_id' : context.project_id
             }
         
+        ## TODO Move these to database!
+        ST_AUTH=FLAGS.swiftclient_auth_url
+        ST_USER=FLAGS.swiftclient_user
+        ST_KEY=FLAGS.swiftclient_key        
+        
         # Add record to database
         db_snapshot = dbapi.db_snapshot_create(context, values)
-        cred = credential.SwiftCredential('user', 'key', 'auth')
+        cred = credential.SwiftCredential(ST_USER, ST_KEY, ST_AUTH)
         self.guestapi.create_snapshot(context, instance_id, uuid, cred)
         snapshot = self.view.build_single(db_snapshot, req)
         return exc.HTTPCreated({ 'snapshot' : snapshot })

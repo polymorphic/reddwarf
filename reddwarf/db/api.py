@@ -389,6 +389,20 @@ def localid_from_uuid(uuid):
         return None
     return result['id']
 
+def internalid_from_uuid(uuid):
+    """
+    Given an instance's uuid, retrieve the internal_id for compatibility
+    with nova. When nova uses uuids exclusively, this function will not be
+    needed.
+    """
+    LOG.debug("Retrieving internal id for instance %s" % uuid)
+    session = get_session()
+    try:
+        result = session.query(Instance).filter_by(uuid=uuid).one()
+    except NoResultFound:
+        LOG.debug("No such instance found.")
+        return None
+    return result['internal_id']
 
 def instance_from_uuid(uuid):
     """

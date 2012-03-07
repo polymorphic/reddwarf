@@ -1,0 +1,9 @@
+How to start RedDwarf API Server as a daemon
+===============================================
+To start the API Server, deploy and start the daemon:
+    sudo cp /home/ubuntu/reddwarf/bin/reddwarf-api.init /etc/init.d/reddwarf-api
+    sudo /etc/init.d/reddwarf-api start
+
+The server process will be running. The application log goes to /var/log/nova.log.
+To further verify the service running or not, check process info:
+    ps aux | grep reddwarf
