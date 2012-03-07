@@ -27,7 +27,7 @@ __author__ = 'dragosmanolescu'
 __email__ = 'dragosm@hp.com'
 __python_version__ = '2.7.2'
 
-PID_FILENAME = os.path.join(paths.smartagent_working_dir, service.name + '.pid')
+PID_FILENAME = os.path.join(paths.smartagent_working_dir, paths.smartagent_pid_file_name)
 
 def main():
     """Activates the smart agent by instantiating an instance of SmartAgent

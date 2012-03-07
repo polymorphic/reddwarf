@@ -57,7 +57,8 @@ class Service:
         """
         pid = os.getpid()
         self.logger.debug('daemon running')
-        self.pid_filename = os.path.join(self.working_directory, __name__ + '.pid')
+        self.pid_filename = os.path.join(self.working_directory,
+            paths.smartagent_pid_file_name)
         try:
             with open(self.pid_filename, 'w') as pid_file:
                 pid_file.writelines(str(pid))

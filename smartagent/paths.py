@@ -25,3 +25,4 @@ smartagent_working_dir = '/home/nova'
 mycnf_base = environ['HOME']
 mysql_pid_file_path = '/var/lib/mysql'
 smartagent_name = 'smartagent'
+smartagent_pid_file_name = 'service.pid'
