@@ -41,7 +41,7 @@ class MySqlChecker:
     def __init__(self,
                  host_name='127.0.0.1',
                  port_number=3306,
-                 pid_file_path=paths.mysql_pid_file_path):
+                 pid_file_path=paths.mysql_var_path):
         self.host_name = host_name
         self.port_number = port_number
         self.pid_file_path = pid_file_path
