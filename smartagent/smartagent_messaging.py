@@ -11,21 +11,18 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
-__author__ = 'dragosmanolescu'
-__email__ = 'dragosm@hp.com'
-__python_version__ = '2.7.2'
-
+from smartagent import paths
 from singleton import Singleton
 import os
 import pika
 import json
 import logging
-logging.basicConfig()
 
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
+__author__ = 'dragosmanolescu'
+__email__ = 'dragosm@hp.com'
+__python_version__ = '2.7.2'
 
+LOG = logging.getLogger(paths.smartagent_name)
 
 @Singleton
 class MessagingService():

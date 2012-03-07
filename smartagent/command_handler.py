@@ -41,22 +41,17 @@ try:
     from eventlet.green.httplib import HTTPException, HTTPSConnection
 except ImportError:
     from httplib import HTTPException, HTTPSConnection
-    
 
+LOG = logging.getLogger(paths.smartagent_name)
 
-logging.basicConfig()
-
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
-
-def random_string(size=6):
+def random_string(size=6):  # TODO: move to utils.py
     """ Generate a random string to be used for password """
     # string to use
     chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     # join random chars of size N and return
     return ''.join(random.choice(chars) for x in range(size))
 
-def write_dotmycnf(user='os_admin', password='hpcs'):
+def write_dotmycnf(user='os_admin', password='hpcs'):  # TODO: move to class/utils.py
     """ Write the .my.cnf file so as the user does not require credentials 
     for the DB """
     # open and write .my.cnf
@@ -70,8 +65,7 @@ def write_dotmycnf(user='os_admin', password='hpcs'):
 class MysqlCommandHandler:
     """ Class for passing commands to mysql """
     
-    # TODO: why this IP address? Hardcode not good
-    #def __init__(self, host_name='15.185.175.59',
+    # TODO: extract to paths.py
     def __init__(self,
                  host_name='localhost',
                  database_name='mysql',
