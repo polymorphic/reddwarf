@@ -306,10 +306,10 @@ processing of the result etc.
             userdata = None
             init_script = FLAGS.instance_initscript
             if init_script and len(init_script) > 0:
-                cwd = os.getcwd()
-                print ( cwd )
-                init_script_fqn = os.path.join(cwd, init_script)
-                userdata = open(init_script_fqn)
+                #cwd = os.getcwd()
+                #print ( cwd )
+                #init_script_fqn = os.path.join(cwd, init_script)
+                userdata = open(init_script)
 
             keypair = FLAGS.instance_keypair_default
 
