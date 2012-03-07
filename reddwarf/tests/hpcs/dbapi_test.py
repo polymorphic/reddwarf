@@ -32,7 +32,7 @@ class DBFunctionalTests(unittest.TestCase):
     def test_instance_api(self):
         """Comprehensive instance api test using an instance lifecycle."""
         
-        """1) Test creating a db instance."""
+        """Test creating a db instance."""
         LOG.debug("* Creating db instance")
         body = r"""
         {"instance": {
@@ -65,25 +65,24 @@ class DBFunctionalTests(unittest.TestCase):
         content = json.loads(content)
         LOG.debug(resp)
         LOG.debug(content)
+        
         self.instance_id = content['instance']['id']
         LOG.debug("Instance ID: %s" % self.instance_id)
-        
 
         """Assert 1) that the request was accepted and 2) that the response
            is in the expected format."""
         self.assertEqual(resp.status, 200)
         self.assertTrue(content.has_key('instance'))
-        #self.instance_id = "e48fe6b6-77d5-4619-9ed7-8f39231bded7"
        
     
-        """2) Test listing all db instances."""
+        """Test listing all db instances."""
         LOG.debug("* Listing all db instances")
         req = httplib2.Http(".cache")
         resp, content = req.request(API_URL + "instances", "GET", "", AUTH_HEADER)
-        content = json.loads(content)
+        content = json.loads(content)     
+        LOG.debug(resp)
+        LOG.debug(content)
         
-        print resp
-        print content
         """Assert 1) that the request was accepted and 2) that the response is
            in the expected format (e.g. a JSON object beginning with an
            'instances' key)."""
@@ -91,54 +90,53 @@ class DBFunctionalTests(unittest.TestCase):
         self.assertTrue(content.has_key('instances'))
     
     
-        """3) Test getting a specific db instance."""
+        """Test getting a specific db instance."""
         LOG.debug("* Getting instance %s" % self.instance_id)
         req = httplib2.Http(".cache")
         resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
-        content = json.loads(content)
+        content = json.loads(content)        
+        LOG.debug(resp)
+        LOG.debug(content)
         
-        print resp
-        print content
         """Assert 1) that the request was accepted and 2) that the returned 
            instance is the same as the accepted instance."""
         self.assertEqual(resp.status, 200)
         self.assertEqual(self.instance_id, content['instance']['id'])
     
     
-#        """4) Test resetting the password on a db instance."""
+#        """Test immediately resetting the password on a db instance."""
 #        LOG.debug("* Resetting password on instance %s" % self.instance_id)
 #        req = httplib2.Http(".cache")
 #        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/resetpassword", "POST", "", AUTH_HEADER)
-#        #content = json.loads(content)
-#        
-#        print resp
-#        print content
+#        LOG.debug(resp)
+#        LOG.debug(content)
+#
 #        """Assert 1) that the request was accepted."""
-#        self.assertEqual(resp.status, 202)
-#        #self.assertEqual(self.instance_id, content['instance']['id'])   
+#        self.assertEqual(resp.status, 500)  
     
     
-#        """5) Test restarting a db instance."""
-#        LOG.debug("* Restarting instance %s" % self.instance_id)
-#        LOG.debug("  - Sending %s command: %s" % ("POST", API_URL + "instances/" + self.instance_id + "/restart"))
-#        req = httplib2.Http(".cache")
-#        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/restart", "POST", "", AUTH_HEADER)
-#        #content = json.loads(content)
-#        
-#        print resp
-#        print content
-#        """Assert 1) that the request was accepted."""
-#        self.assertEqual(resp.status, 202)
-#        #self.assertEqual(self.instance_id, content['instance']['id'])
+        """Test immediately restarting a db instance."""
+        LOG.debug("* Restarting instance %s" % self.instance_id)
+        LOG.debug("  - Sending %s command: %s" % ("POST", API_URL + "instances/" + self.instance_id + "/restart"))
+        req = httplib2.Http(".cache")
+        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/restart", "POST", "", AUTH_HEADER)        
+        LOG.debug(resp)
+        LOG.debug(content)
+        
+        """Assert 1) that the request was accepted but raised an exception
+           (because the server isn't ready to be rebooted yet)."""
+        self.assertEqual(resp.status, 500)
+        
+        # TODO: add a sleep and re-test reset password and reboot instance 
     
     
-        """6) Test deleting a db instance."""
+        """Test deleting a db instance."""
         LOG.debug("* Deleting instance %s" % self.instance_id)
         req = httplib2.Http(".cache")
         resp, content = req.request(API_URL + "instances/" + self.instance_id, "DELETE", "", AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
         
-        print resp
-        print content
         """Assert 1) that the request was accepted and 2) that the instance no
            longer exists."""
         self.assertEqual(resp.status, 202)
@@ -148,6 +146,7 @@ class DBFunctionalTests(unittest.TestCase):
         
         for each in content['instances']:
             self.assertFalse(each['id'] == self.instance_id)
+   
     
     def test_dbsnapshot_list(self):
         """Test listing all db snapshots."""

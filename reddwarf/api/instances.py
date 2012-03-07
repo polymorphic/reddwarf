@@ -159,15 +159,7 @@ class Controller(object):
         if isinstance(osclient_response, Exception):
             return osclient_response
         
-        server_response = self.client.show(id)
-        LOG.info("Called OSClient.delete().  Server response: %s", server_response)
-        
-        if 'deleting' not in server_response.status:
-            raise exception.InstanceFault("There was a problem deleting" +\
-                " this instance.  If this problem persists, please" +\
-                " contact Customer Support.")
         dbapi.instance_delete(id)
-        #dbapi.guest_status_delete(instance_id)
         return exc.HTTPAccepted()
 
 
@@ -243,8 +235,7 @@ class Controller(object):
         print server_response
         
         server_response = self.client.show(instance_id)
-        guest_state = self.get_guest_state_mapping([server_response.id])
-        LOG.info("Called OSClient.restart().  Response/guest state: %s - %s", server_response, guest_state)
+        LOG.info("Called OSClient.restart().  Response: %s - %s", server_response)
         
         if 'rebooting' not in server_response.status:
             raise exception.InstanceFault("There was a problem restarting" +\
