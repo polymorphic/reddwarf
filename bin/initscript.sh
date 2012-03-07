@@ -96,9 +96,9 @@ apt-get install -qqy git
 gid="$(getent passwd mysql | cut -f4 -d:)"
 useradd -m -g $gid nova
 cd /home/nova
-sudo -u nova mkdir lock
-sudo -u nova mkdir logs
-sudo -u nova git clone https://github.com/hpcloud/reddwarf.git
+sudo mkdir lock
+sudo mkdir logs
+sudo git clone https://github.com/hpcloud/reddwarf.git
 
 # Create a .my.cnf for the Agent
 echo "[client]
@@ -122,4 +122,4 @@ pip install swift
 pip install --upgrade python-daemon
 cd reddwarf
 ln -s /home/nova/reddwarf/smartagent/smartagent_launcher.py /etc/init.d/smartagent
-sudo -u nova /etc/init.d/smartagent start
+sudo /etc/init.d/smartagent start
