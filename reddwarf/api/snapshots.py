@@ -50,6 +50,9 @@ class Controller(object):
         LOG.info("Get snapshot %s" % id)
         LOG.debug("%s - %s", req.environ, req.body)
         db_snapshot = dbapi.db_snapshot_get(id)
+        if not db_snapshot:
+            return exc.HTTPNotFound()
+        
         snapshot = self.view.build_single(db_snapshot, req)
         return { 'snapshot' : snapshot }
     
@@ -90,6 +93,9 @@ class Controller(object):
         context = req.environ['nova.context']
         db_snapshot = dbapi.db_snapshot_get(id)
         
+        if not db_snapshot:
+            return exc.HTTPNotFound()
+
         uri = db_snapshot.storage_uri
         
         #Only delete from swift if we have a URI
@@ -109,8 +115,10 @@ class Controller(object):
                 'snet' : False,
                 'prefix' : '',
                 'auth_version' : '1.0'}
-            
-            swift.st_delete(opts, container, file)
+            try:
+                swift.st_delete(opts, container, file)
+            except Exception as e:
+                exc.HTTPInternalServerError(e)
         
         # Mark snapshot deleted in DB
         dbapi.db_snapshot_delete(context, id)

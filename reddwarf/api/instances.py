@@ -139,6 +139,8 @@ class Controller(object):
         LOG.debug("%s - %s", req.environ, req.body)
 
         db_instance = dbapi.instance_from_uuid(id)
+        if not db_instance:
+            return exc.HTTPNotFound()
         
         remote_id = db_instance.internal_id
         guest_state = self.get_guest_state_mapping([remote_id])
@@ -160,7 +162,7 @@ class Controller(object):
             self.client.delete(internal_id)
         except novaclient_exceptions.NotFound as e:
             return exc.HTTPNotFound(e)
-        else:
+        except Exception:
             return exc.HTTPInternalServerError()
         
         dbapi.instance_delete(id)
