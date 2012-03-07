@@ -23,6 +23,6 @@ backlog_path = '/home/nova/backup_logs/'
 backup_path = '/var/lib/mysql-backup/'
 smartagent_working_dir = '/home/nova'
 mycnf_base = environ['HOME']
-mysql_pid_file_path = '/var/lib/mysql'
+mysql_var_path = '/var/lib/mysql'
 smartagent_name = 'smartagent'
 smartagent_pid_file_name = 'service.pid'

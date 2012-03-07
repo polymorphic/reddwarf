@@ -330,7 +330,7 @@ class MysqlCommandHandler:
     
     def create_db_snapshot(self, path_specifier, st_user, st_key, st_auth, container='mysql-backup-dbasdemo'):
         path = os.path.join(paths.backup_path, path_specifier)
-        log_home = os.path.join(self.backlog_path, path_specifier)
+        log_home = os.path.join(paths.backlog_path, path_specifier)
         keyword_to_check = "innobackupex: completed OK!"  # TODO: replace with regexp?
         
         result = None
