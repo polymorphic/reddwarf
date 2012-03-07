@@ -27,13 +27,13 @@ __email__ = 'dragosm@hp.com'
 __python_version__ = '2.7.2'
 
 AGENT_HOME = paths.smartagent_working_dir
-AGENT_CONFIG = os.path.join(AGENT_HOME,'agent.config')
+AGENT_CONFIG = os.path.join(AGENT_HOME, paths.smartagent_config_file_name)
 
 class SmartAgent:
     def __init__(self, logger=None):
         # logging
         if logger is None:
-            self.logger = logging.getLogger(__name__)
+            self.logger = logging.getLogger(paths.smartagent_name)
             logging.basicConfig(level=logging.DEBUG,
                 format='%(asctime)s %(levelname)8s %(message)s')
         else:
@@ -46,7 +46,7 @@ class SmartAgent:
             self.messaging = MessagingService(host_address=mq_conf['rabbit_host'])
         self.messaging.callback = self.process_message
         # others
-        self.checker = MySqlChecker()
+        self.checker = MySqlChecker(self.logger)
         self.handler = MysqlCommandHandler()
         # get snapshot config if any
         self.snapshot_conf = self._load_config("snapshot")  #TODO: hardcoded name

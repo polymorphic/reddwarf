@@ -35,7 +35,7 @@ class Service:
         """
         Setup while running in the launcher's process
         """
-        self.logger = logging.getLogger(self.name)
+        self.logger = logging.getLogger(paths.smartagent_name)
         self.logger.setLevel(logging.DEBUG)
         handler = logging.handlers.TimedRotatingFileHandler(
             # log file opened before daemon start

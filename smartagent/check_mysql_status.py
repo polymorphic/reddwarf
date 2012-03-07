@@ -27,11 +27,8 @@ import re
 import subprocess
 import paths
 import logging
-logging.basicConfig()
 
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
-
+LOG = logging.getLogger(paths.smartagent_name)
 
 class MySqlChecker:
     """

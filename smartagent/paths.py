@@ -26,3 +26,4 @@ mycnf_base = environ['HOME']
 mysql_var_path = '/var/lib/mysql'
 smartagent_name = 'smartagent'
 smartagent_pid_file_name = 'service.pid'
+smartagent_config_file_name = 'agent.config'
