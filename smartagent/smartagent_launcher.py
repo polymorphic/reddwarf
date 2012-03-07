@@ -48,7 +48,7 @@ def main():
             sys.exit(2)
         sys.exit(0)
     else:
-        print "Usage: %s start|stop|restart" % sys.argv[0]
+        print "Usage: %s start|stop|restart|status" % sys.argv[0]
         sys.exit(2)
 
 def start():
