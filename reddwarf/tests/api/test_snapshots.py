@@ -48,7 +48,7 @@ def create_snapshot(self, context, instance_id, snapshot_id, credential):
 dummy_snapshot = models.DbSnapShots()
 dummy_snapshot.uuid = "123"
 dummy_snapshot.name = "test-snapshot"
-dummy_snapshot.state = "running"
+dummy_snapshot.state = 0
 dummy_snapshot.created_at = "5555"
 dummy_snapshot.instance_uuid = "234"
 
