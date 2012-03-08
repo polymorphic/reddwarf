@@ -16,12 +16,13 @@ deb-src http://repo.percona.com/apt lucid main" >/etc/apt/sources.list.d/percona
 apt-get update
 apt-get --force-yes -y install xfsprogs xfsdump
 apt-get --force-yes --yes install percona-server-common-5.5  percona-server-server-5.5 percona-server-test-5.5  percona-server-client-5.5 libmysqlclient18  libmysqlclient-dev xtrabackup
-apt-get --force-yes --yes install python-swift swift policycoreutils python-mysqldb python-nova libdbd-mysql-perl libdbi-perl python-pip
+apt-get --force-yes --yes install python-swift swift policycoreutils python-mysqldb python-nova libdbd-mysql-perl libdbi-perl python-pip python-dev
 apt-get install -qqy git
 apt-get --force-yes -y install lvm2
 pip install --upgrade pika
 pip install --upgrade amqplib
 pip install --upgrade kombu 
+pip install --upgrade mysql-python
 easy_install pika
 
 # remove last line in /etc/fstab which has the old mount point
@@ -29,11 +30,6 @@ sed -i '$d' /etc/fstab
 
 # change root/admin password
 /usr/bin/mysqladmin -u root password hpcs 
-# create agent DB account
-# TODO: get privileges set up so agent can't read user, vice versa
-/usr/bin/mysql -c "grant all privileges on *.* to 'os_admin'@'localhost' identified by 'hpcs' with grant option;"
-# create user account. TODO: this will be passed via the API
-/usr/bin/mysql -c "grant all privileges on *.* to 'dbas'@'localhost' identified by 'hpcs' with grant option;"
 
 # now shut down
 /etc/init.d/mysql stop
@@ -51,6 +47,7 @@ echo "[mysqld]
 user=mysql
 
 datadir=/var/lib/mysql
+log = /var/log/mysql/query.log
 
 innodb_buffer_pool_size=500M
 innodb_log_file_size=100M
@@ -91,7 +88,14 @@ chown -R mysql:mysql /var/lib/mysql
 /etc/init.d/mysql start
 
 # this WILL be dynamic
-/usr/bin/mysql -u root -phpcs -e "grant all privileges on mysql.* to 'os_admin'@'localhost' identified by 'hpcs' with grant option;" 
+#/usr/bin/mysql -u root -phpcs -e "grant all privileges on mysql.* to 'os_admin'@'localhost' identified by 'hpcs' with grant option;" 
+
+# create agent DB account
+# TODO: get privileges set up so agent can't read user, vice versa
+/usr/bin/mysql -u root -phpcs -e "grant all privileges on *.* to 'os_admin'@'localhost' identified by 'hpcs' with grant option;"
+# create user account. TODO: this will be passed via the API
+/usr/bin/mysql -u root -phpcs -e "grant all privileges on *.* to 'dbas'@'%' identified by 'hpcs' with grant option;"
+
 
 useradd -d /home/nova -g mysql -m -s /bin/bash -p n0va nova
 mkdir /home/nova/logs
@@ -101,11 +105,20 @@ chown nova -R /home/nova/
 mkdir /var/lib/mysql-backup
 chown nova:mysql /var/lib/mysql-backup
 
+# Create a .my.cnf for the Agent
+echo "[client]
+user=root
+password=hpcs
+" > /home/nova/.my.cnf
+
+ln -s /home/nova/.my.cnf /root/.my.cnf
+
 cd /home/nova
 git clone git clone git@github.com:hpcloud/reddwarf.git
-cp /home/nova/reddwarf/smartagent/startup/disk_prep /etc/init.d
-cp /home/nova/reddwarf/smartagent/startup/smartagent /etc/init.d
-cp /home/nova/reddwarf/smartagent/startup/mysql.conf /etc/init.d
-cp /home/nova/reddwarf/smartagent/startup/sudoers /etc
-update-rc.d disk_prep defaults 85
+#cp /home/nova/reddwarf/smartagent/startup/disk_prep /etc/init.d
+#cp /home/nova/reddwarf/smartagent/startup/smartagent /etc/init.d
+#cp /home/nova/reddwarf/smartagent/startup/mysql.conf /etc/init.d
+#cp /home/nova/reddwarf/smartagent/startup/sudoers /etc
+ln -s /home/nova/reddwarf/smartagent/smartagent_launcher.py /etc/init.d/smartagent
+#update-rc.d disk_prep defaults 85
 update-rc.d smart_agent defaults 90
