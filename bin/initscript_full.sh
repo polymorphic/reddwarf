@@ -123,5 +123,6 @@ password=hpcs
 ln -s /home/nova/.my.cnf /root/.my.cnf
 
 cd reddwarf
-ln -s /home/nova/reddwarf/smartagent/startup/smartagent /etc/init.d/smartagent
+ln -s /home/nova/reddwarf/swiftapi/swift.py /home/nova/reddwarf/smartagent/swift.py
+ln -s /home/nova/reddwarf/smartagent/smartagent_launcher.py /etc/init.d/smartagent
 sudo /etc/init.d/smartagent start
