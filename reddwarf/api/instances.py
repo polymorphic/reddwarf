@@ -193,16 +193,15 @@ class Controller(object):
         # This should be fetched from Flags, image should contain mysqld and agent
         image_id = FLAGS.default_image
         flavor_ref = FLAGS.default_instance_type
-        
 
         storage_uri = None
-        
-        if hasattr(body['instance'],'snapshotId'):
+        if 'snapshotId' in body['instance']:
             snapshot_id = body['instance']['snapshotId']
             if snapshot_id and len(snapshot_id) > 0:
                 db_snapshot = dbapi.db_snapshot_get(snapshot_id)
                 storage_uri = db_snapshot.storage_uri
-        
+                LOG.debug("Found Storage URI for snapshot: %s" % storage_uri)
+
         # Create the Server remotely    
         server_resp = self._try_create_server(req, host_name, image_id, flavor_ref, storage_uri)
         
@@ -300,15 +299,14 @@ processing of the result etc.
                         '\n'\
                         '[database]\n'\
                         'initial_password: ' + utils.generate_password(length=8)
-                        
+
             if snapshot_uri and len(snapshot_uri) > 0:
-                conf_file.join('\n'\
+                conf_file = conf_file + '\n'\
                                '[snapshot]\n'\
                                'snapshot_uri: ' + snapshot_uri + '\n'\
                                'swift_auth_url: ' + FLAGS.swiftclient_auth_url + '\n'\
                                'swift_auth_user: ' + FLAGS.swiftclient_user + '\n'\
-                               'swift_auth_key: ' + FLAGS.swiftclient_key + '\n')
-
+                               'swift_auth_key: ' + FLAGS.swiftclient_key + '\n'
                         
             LOG.debug('%s',conf_file)
             
