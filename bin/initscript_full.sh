@@ -117,25 +117,11 @@ user=os_admin
 password=hpcs
 " > /home/nova/.my.cnf
 
-echo 'export PYTHONPATH=/home/nova/reddwarf/swiftapi' >> /root/.bashrc
-source /root/.bashrc
+#echo 'export PYTHONPATH=/home/nova/reddwarf/swiftapi' >> /root/.bashrc
+#source /root/.bashrc
 
 ln -s /home/nova/.my.cnf /root/.my.cnf
 
-######## TEMPORARY agent.config file ########
-#echo "[messaging]
-#rabbit_host: 15.185.163.167
-#
-#[database]
-#initial_password: hpcs
-#" > /home/nova/agent.config
-##########################
-
-apt-get install -qqy python-pip python-dev
-pip install pika
-pip install mysql-python
-pip install swift
-pip install --upgrade python-daemon
 cd reddwarf
-ln -s /home/nova/reddwarf/smartagent/smartagent_launcher.py /etc/init.d/smartagent
+ln -s /home/nova/reddwarf/smartagent/startup/smartagent /etc/init.d/smartagent
 sudo /etc/init.d/smartagent start
