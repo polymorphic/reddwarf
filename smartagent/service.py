@@ -35,7 +35,7 @@ class Service:
         """
         Setup while running in the launcher's process
         """
-        self.logger = logging.getLogger(self.name)
+        self.logger = logging.getLogger(paths.smartagent_name)
         self.logger.setLevel(logging.DEBUG)
         handler = logging.handlers.TimedRotatingFileHandler(
             # log file opened before daemon start
@@ -46,7 +46,8 @@ class Service:
             interval=7,
             delay=True)  # ensure file won't be closed
         handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter("[%(process)d] %(asctime)s:%(levelname)s:%(name)s:%(message)s")
+        formatter = logging.Formatter(
+            "[%(process)d] %(asctime)s:%(levelname)s:%(name)s:%(message)s")
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
 
@@ -66,7 +67,7 @@ class Service:
             self.logger.error('Error creating PID file %s', self.pid_filename)
         else:
             self.logger.debug('Daemon PID written to %s', self.pid_filename)
-        smart_agent = SmartAgent()
+        smart_agent = SmartAgent(logger=self.logger)
         smart_agent.run()
 
     def shutdown(self, signal_number, stack_frame):
@@ -79,7 +80,6 @@ class Service:
 
     def restart(self, signal_number, stack_frame):
         self.logger.debug('SIGHUP received')
-
 
 
 if __name__ =='__main__':

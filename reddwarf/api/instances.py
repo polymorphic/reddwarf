@@ -51,6 +51,7 @@ from smartagent import result_state
 from nova.notifier import api as notifier
 
 from novaclient.v1_1 import servers as novaclientservers
+from novaclient import exceptions as novaclient_exceptions
 import novaclient
 
 from reddwarf import exception
@@ -138,6 +139,8 @@ class Controller(object):
         LOG.debug("%s - %s", req.environ, req.body)
 
         db_instance = dbapi.instance_from_uuid(id)
+        if not db_instance:
+            return exc.HTTPNotFound()
         
         remote_id = db_instance.internal_id
         guest_state = self.get_guest_state_mapping([remote_id])
@@ -154,10 +157,18 @@ class Controller(object):
         
         internal_id = dbapi.internalid_from_uuid(id)
         LOG.debug("Remote ID: " + str(internal_id))
-
-        osclient_response = self.client.delete(internal_id)
-        if isinstance(osclient_response, Exception):
-            return osclient_response
+        
+        LOG.debug("Deleting instance %d" % int(internal_id))
+        try:
+            self.client.delete(internal_id)
+        except novaclient_exceptions.NotFound as e:
+            LOG.debug("Delete: instance not found")
+            #print str(e)
+            return exc.HTTPNotFound(e)
+        except Exception, e:
+            LOG.debug("Delete: internal server error")
+            LOG.debug(e)
+            return exc.HTTPInternalServerError()
         
         dbapi.instance_delete(id)
         return exc.HTTPAccepted()
@@ -218,7 +229,7 @@ class Controller(object):
         db_instance.access_ip_v4 = ip
         
         guest_state = self.get_guest_state_mapping([remote_id])
-        instance = self.view.build_single(db_instance, req, guest_state)
+        instance = self.view.build_single(db_instance, req, guest_state, create=True)
 
         return { 'instance': instance }
     
@@ -235,7 +246,7 @@ class Controller(object):
         print server_response
         
         server_response = self.client.show(instance_id)
-        LOG.info("Called OSClient.restart().  Response: %s - %s", server_response)
+        LOG.info("Called OSClient.restart().  Response: %s", server_response)
         
         if 'rebooting' not in server_response.status:
             raise exception.InstanceFault("There was a problem restarting" +\

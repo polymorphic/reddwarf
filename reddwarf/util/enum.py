@@ -1,4 +1,4 @@
-# Copyright 2012 HP Software, LLC
+#    Copyright 2012 OpenStack LLC
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -11,19 +11,16 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-from os import environ
 
-__author__ = 'dragosmanolescu'
-__email__ = 'dragosm@hp.com'
-__python_version__ = '2.7.2'
+def enum(**enums):
+    vals = dict()
+    vals['_inverse'] = dict()
+    for k, v in enums.iteritems():
+        vals[k] = v
+        vals['_inverse'][v] = k
+    return type('Enum', (object, Enum,), vals)
 
-# Pull all file system paths here
-
-backlog_path = '/home/nova/backup_logs/'
-backup_path = '/var/lib/mysql-backup/'
-smartagent_working_dir = '/home/nova'
-mycnf_base = environ['HOME']
-mysql_var_path = '/var/lib/mysql'
-smartagent_name = 'smartagent'
-smartagent_pid_file_name = 'service.pid'
-smartagent_config_file_name = 'agent.config'
+class Enum:
+    @staticmethod
+    def valueOf(enum, value):
+        return enum._inverse[value]

@@ -25,7 +25,8 @@ from nova.compute import power_state
 from nova.exception import InstanceNotFound
 
 from reddwarf.api import common
-
+from reddwarf.db.snapshot_state import SnapshotState 
+from reddwarf.util.enum import Enum
 
 LOG = logging.getLogger('reddwarf.api.views.snapshot')
 LOG.setLevel(logging.DEBUG)
@@ -47,12 +48,15 @@ class ViewBuilder(object):
         snapshot = {}
         snapshot['id'] = db_snapshot.uuid
         snapshot['name'] = db_snapshot.name
-        snapshot['status'] = db_snapshot.state
         snapshot['created'] = db_snapshot.created_at
         snapshot['instanceId'] = db_snapshot.instance_uuid
         snapshot['links'] = self._build_links(req, db_snapshot)
         return snapshot
 
+    def _build_detail(self, db_snapshot, snapshot):
+        snapshot['status'] = Enum.valueOf(SnapshotState, db_snapshot.state)
+        return snapshot
+        
     @staticmethod
     def _build_links(req, db_snapshot):
         """Build the links for the snapshot"""
@@ -80,6 +84,7 @@ class ViewBuilder(object):
     def build_single(self, db_snapshot, req):
         """Build the response for a snapshot detail call"""
         snapshot = self._build_basic(db_snapshot, req)
+        snapshot = self._build_detail(db_snapshot, snapshot)
         return snapshot
 
     @staticmethod

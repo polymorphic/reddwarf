@@ -50,16 +50,25 @@ class ViewBuilder(object):
             
         instance['status'] = self.get_instance_status(remote_id, guest_states)
         instance['links'] = self._build_links(req, instance)
+        instance['created'] = server.created_at
+
         return instance
 
-    def _build_detail(self, server, req, instance):
+    def _build_detail(self, server, req, instance, create):
         """Build out a more detailed view of the instance"""
 
-        instance['created'] = server.created_at
         instance['updated'] = server.updated_at
 
         # Add the hostname
         instance['hostname'] = server.access_ip_v4
+        instance['port'] = 3306
+                
+        # Default credentials on Database Create
+        credentials = { 'username' : 'dbas',
+                        'password' : 'hpcs'
+                      }
+        if create:
+            instance['credentials'] = credentials 
 
         return instance
 
@@ -93,12 +102,12 @@ class ViewBuilder(object):
         instance = self._build_detail(server, req, instance)
         return instance
 
-    def build_single(self, server, req, guest_states):
+    def build_single(self, server, req, guest_states, create=False):
         """
         Given a server (obtained from the servers API) returns an instance.
         """
         instance = self._build_basic(server, req, guest_states)
-        instance = self._build_detail(server, req, instance)
+        instance = self._build_detail(server, req, instance, create)
 
         return instance
 
