@@ -157,7 +157,7 @@ class Controller(object):
         cred = credential.SwiftCredential(ST_USER, ST_KEY, ST_AUTH)
         self.guestapi.create_snapshot(context, instance_id, uuid, cred)
         snapshot = self.view.build_single(db_snapshot, req)
-        return exc.HTTPCreated({ 'snapshot' : snapshot })
+        return { 'snapshot' : snapshot }
 
     def _validate(self, body):
         """Validate that the request has all the required parameters"""

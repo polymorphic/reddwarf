@@ -16,10 +16,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from reddwarf.util.enum import enum
 
-class SnapshotState:
-    """States of snapshots"""
-    INPROGRESS = 1
-    COMPLETED = 2
-    FAILED = 3
-    DELETED = 4
+"""States of snapshots"""
+SnapshotState = enum(
+    INPROGRESS=1,
+    COMPLETED=2,
+    FAILED=3,
+    DELETED=4)

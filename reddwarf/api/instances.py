@@ -158,11 +158,16 @@ class Controller(object):
         internal_id = dbapi.internalid_from_uuid(id)
         LOG.debug("Remote ID: " + str(internal_id))
         
+        if internal_id is None:
+            return exc.HTTPNotFound()
+        
         try:
             self.client.delete(internal_id)
         except novaclient_exceptions.NotFound as e:
+            LOG.debug("Instance not found.  Exception: ", e)
             return exc.HTTPNotFound(e)
-        except Exception:
+        except Exception, e:
+            LOG.debug("Instance not found.  Exception: ", e)
             return exc.HTTPInternalServerError()
         
         dbapi.instance_delete(id)
