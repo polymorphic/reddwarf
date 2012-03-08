@@ -69,7 +69,7 @@ class SnapshotApiTest(test.TestCase):
         self.stubs.Set(guestapi.API, "create_snapshot", create_snapshot)
         req = request_obj(snapshots_url, 'POST', {"snapshot":{"instanceId": "123", "name":"test-snapsot"}})
         res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
-        self.assertEqual(res.status_int, 201)
+        self.assertEqual(res.status_int, 200)
         
     def test_invalid_create_snapshot_request(self):
         req = request_obj(snapshots_url, 'POST')
