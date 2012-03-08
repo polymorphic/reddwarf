@@ -81,7 +81,7 @@ class Controller(object):
             LOG.debug("Listing snapshots by user_id %s", user_id)
             snapshot_list = dbapi.db_snapshot_list_by_user(context, user_id)
         
-        snapshots = [self.view.build_single(db_snapshot, req)
+        snapshots = [self.view.build_index(db_snapshot, req)
                     for db_snapshot in snapshot_list]
         
         return dict(snapshots=snapshots)
