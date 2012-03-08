@@ -48,12 +48,15 @@ class ViewBuilder(object):
         snapshot = {}
         snapshot['id'] = db_snapshot.uuid
         snapshot['name'] = db_snapshot.name
-        snapshot['status'] = Enum.valueOf(SnapshotState, db_snapshot.state)
         snapshot['created'] = db_snapshot.created_at
         snapshot['instanceId'] = db_snapshot.instance_uuid
         snapshot['links'] = self._build_links(req, db_snapshot)
         return snapshot
 
+    def _build_detail(self, db_snapshot, snapshot):
+        snapshot['status'] = Enum.valueOf(SnapshotState, db_snapshot.state)
+        return snapshot
+        
     @staticmethod
     def _build_links(req, db_snapshot):
         """Build the links for the snapshot"""
