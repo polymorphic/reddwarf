@@ -304,8 +304,9 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug(content)
         self.assertEqual(404, resp.status)
         
+        time.sleep(10)
+        
         # Finally, delete the instance.
-        # Test deleting a db instance.
         LOG.debug("* Deleting instance %s" % self.instance_id)
         resp, content = req.request(API_URL + "instances/" + self.instance_id, "DELETE", "", AUTH_HEADER)
         LOG.debug(resp)

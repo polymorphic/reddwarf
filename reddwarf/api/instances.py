@@ -158,16 +158,16 @@ class Controller(object):
         internal_id = dbapi.internalid_from_uuid(id)
         LOG.debug("Remote ID: " + str(internal_id))
         
-        if internal_id is None:
-            return exc.HTTPNotFound()
-        
+        LOG.debug("Deleting instance %d" % int(internal_id))
         try:
             self.client.delete(internal_id)
         except novaclient_exceptions.NotFound as e:
-            LOG.debug("Instance not found.  Exception: ", e)
+            LOG.debug("Delete: instance not found")
+            #print str(e)
             return exc.HTTPNotFound(e)
         except Exception, e:
-            LOG.debug("Instance not found.  Exception: ", e)
+            LOG.debug("Delete: internal server error")
+            LOG.debug(e)
             return exc.HTTPInternalServerError()
         
         dbapi.instance_delete(id)
@@ -246,7 +246,7 @@ class Controller(object):
         print server_response
         
         server_response = self.client.show(instance_id)
-        LOG.info("Called OSClient.restart().  Response: %s - %s", server_response)
+        LOG.info("Called OSClient.restart().  Response: %s", server_response)
         
         if 'rebooting' not in server_response.status:
             raise exception.InstanceFault("There was a problem restarting" +\

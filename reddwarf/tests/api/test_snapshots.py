@@ -48,7 +48,7 @@ def create_snapshot(self, context, instance_id, snapshot_id, credential):
 dummy_snapshot = models.DbSnapShots()
 dummy_snapshot.uuid = "123"
 dummy_snapshot.name = "test-snapshot"
-dummy_snapshot.state = "running"
+dummy_snapshot.state = 0
 dummy_snapshot.created_at = "5555"
 dummy_snapshot.instance_uuid = "234"
 
@@ -69,7 +69,7 @@ class SnapshotApiTest(test.TestCase):
         self.stubs.Set(guestapi.API, "create_snapshot", create_snapshot)
         req = request_obj(snapshots_url, 'POST', {"snapshot":{"instanceId": "123", "name":"test-snapsot"}})
         res = req.get_response(util.wsgi_app(fake_auth_context=self.context))
-        self.assertEqual(res.status_int, 201)
+        self.assertEqual(res.status_int, 200)
         
     def test_invalid_create_snapshot_request(self):
         req = request_obj(snapshots_url, 'POST')
