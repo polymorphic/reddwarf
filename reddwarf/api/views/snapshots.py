@@ -25,7 +25,7 @@ from nova.compute import power_state
 from nova.exception import InstanceNotFound
 
 from reddwarf.api import common
-
+from reddwarf.db.snapshot_state import SnapshotState 
 
 LOG = logging.getLogger('reddwarf.api.views.snapshot')
 LOG.setLevel(logging.DEBUG)
@@ -47,7 +47,7 @@ class ViewBuilder(object):
         snapshot = {}
         snapshot['id'] = db_snapshot.uuid
         snapshot['name'] = db_snapshot.name
-        snapshot['status'] = db_snapshot.state
+        snapshot['status'] = SnapshotState.valueOf(db_snapshot.state)
         snapshot['created'] = db_snapshot.created_at
         snapshot['instanceId'] = db_snapshot.instance_uuid
         snapshot['links'] = self._build_links(req, db_snapshot)
