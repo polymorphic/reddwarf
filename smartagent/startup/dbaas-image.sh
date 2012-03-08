@@ -15,52 +15,80 @@ echo "deb http://repo.percona.com/apt lucid main
 deb-src http://repo.percona.com/apt lucid main" >/etc/apt/sources.list.d/percona.list
 
 apt-get update
-apt-get --force-yes -y install xfsprogs xfsdump
+# lvm and xfs
+apt-get --force-yes --yes install lvm2 xfsprogs xfsdump
+# percona
 apt-get --force-yes --yes install percona-server-common-5.5  percona-server-server-5.5 percona-server-test-5.5  percona-server-client-5.5 libmysqlclient18  libmysqlclient-dev xtrabackup
-apt-get --force-yes --yes install python-swift swift policycoreutils python-mysqldb python-nova libdbd-mysql-perl libdbi-perl python-pip
+# python
+apt-get --force-yes --yes install python-swift swift policycoreutils python-mysqldb python-nova libdbd-mysql-perl libdbi-perl python-pip python-dev
+# git
 apt-get install -qqy git
-apt-get --force-yes -y install lvm2
+# python pip installs
 pip install --upgrade pika
 pip install --upgrade amqplib
 pip install --upgrade kombu 
+pip install --upgrade mysql-python
+pip install --upgrade swift
+pip install --upgrade python-daemon
 easy_install pika
 
-# remove last line in /etc/fstab which has the old mount point
+# remove last line in /etc/fstab which has the old mount point that
+# cloudinit automatically adds for /mnt and /dev/vdb
 sed -i '$d' /etc/fstab
 
 # change root/admin password
 /usr/bin/mysqladmin -u root password hpcs 
 # create agent DB account
 # TODO: get privileges set up so agent can't read user, vice versa
-/usr/bin/mysql -u root -p hpcs -c "grant all privileges on *.* to 'os_admin'@'localhost' identified by 'hpcs' with grant option;"
+/usr/bin/mysql -u root -phpcs -e "grant all privileges on *.* to 'os_admin'@'localhost' identified by 'hpcs' with grant option;"
 # create user account. TODO: this will be passed via the API
-/usr/bin/mysql -u root -p hpcs -c "grant all privileges on *.* to 'dbas'@'localhost' identified by 'hpcs' with grant option;"
+/usr/bin/mysql -u root -phpcs -e "grant all privileges on *.* to 'dbas'@'localhost' identified by 'hpcs' with grant option;"
 
-# now shut down
+# now shut down because we have changed the innodb log file size
+# and when we restart, it would otherwise report and error
 /etc/init.d/mysql stop
 
 # remove innodb log file since log file size is changed
-rm /var/lib/mysql.bak/ib_logfile*
+rm /var/lib/mysql/ib_logfile*
 
 # copy stock my.cnf
 echo "[mysqld]
 # this is a VERY stock my.cnf. I know, it needs to be tuned.
-user=mysql
+user		= mysql
 
-datadir=/var/lib/mysql
+# Turn this off after we finish dev
+log		= /var/log/mysql/query.log
+datadir		= /var/lib/mysql
 
-innodb_buffer_pool_size=500M
-innodb_log_file_size=100M
+innodb_buffer_pool_size		= 500M
+innodb_log_file_size		= 100M
 innodb_file_per_table 
 " > /etc/mysql/my.cnf
+
+echo "[client]
+# this is a VERY stock my.cnf. I know, it needs to be tuned.
+user=os_admin
+password=hpcs
+" > /home/nova/.my.cnf
+
+ln -s /home/nova/.my.cnf /root/.my.cnf
 
 # start
 /etc/init.d/mysql start
 
+# set up nova user
 useradd -d /home/nova -g mysql -m -s /bin/bash -p n0va nova
 mkdir /home/nova/logs
 mkdir /home/nova/lock
 mkdir /home/nova/backup_logs
-chown nova -R /home/nova/
+chown nova:mysql -R /home/nova/
 mkdir /var/lib/mysql-backup
 chown nova:mysql /var/lib/mysql-backup
+
+# stop, because we want to make an image
+/etc/init.d/mysql stop
+
+# clear out log
+rm /var/log/mysql/*.err
+
+# NOW YOU CAN IMAGE THE INSTANCE
