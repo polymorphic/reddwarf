@@ -14,7 +14,8 @@
 ### END INIT INFO
 #
 
-SMARTAGENT=/home/nova/reddwarf/smartagent/smartagent.py
+export PYTHONPATH=/home/nova/reddwarf/swiftapi
+SMARTAGENT=/home/nova/reddwarf/smartagent/smartagent_launcher.py
 
 test -x $SMARTAGENT || exit 0
 
