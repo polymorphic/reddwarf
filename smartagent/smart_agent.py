@@ -1,16 +1,17 @@
 # Copyright 2012 HP Software, LLC
 #
-#    Licensed under the Apache License, Version 2.0 (the "License"); you may
-#    not use this file except in compliance with the License. You may obtain
-#    a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
 #
-#         http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-#    License for the specific language governing permissions and limitations
-#    under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
 import ConfigParser
 import logging
 import os
@@ -41,7 +42,7 @@ class SmartAgent:
         # messaging
         mq_conf = self._load_config("messaging")
         if not mq_conf:
-            self.messaging = MessagingService()    # using default MQ host
+            self.messaging = MessagingService() # using default MQ host
         else:
             self.messaging = MessagingService(host_address=mq_conf['rabbit_host'])
         self.messaging.callback = self.process_message
@@ -49,9 +50,9 @@ class SmartAgent:
         self.checker = MySqlChecker()
         self.handler = MysqlCommandHandler()
         # get snapshot config if any
-        self.snapshot_conf = self._load_config("snapshot")  #TODO: hardcoded name
-        self.agent_username = 'os_admin'  #TODO: hardcoded name
-        self.test_username = 'dbas'  #TODO: it needs to be passed from API Server
+        self.snapshot_conf = self._load_config("snapshot") #TODO: hardcoded name
+        self.agent_username = 'os_admin' #TODO: hardcoded name
+        self.test_username = 'dbas' #TODO: it needs to be passed from API Server
 
     def _load_config(self, section):
         result = {}
@@ -100,7 +101,7 @@ class SmartAgent:
                 self.logger.debug('Initial snapshot applied and phone home message sent: %s', result)
             except Exception as err:
                 self.logger.error("Failed to connect to MQ due to channel not available: %s", err)
-            # start listening and consuming rpc messages from API Server
+        # start listening and consuming rpc messages from API Server
         try:
             self.messaging.start_consuming()
         except Exception as err:
@@ -169,9 +170,7 @@ class SmartAgent:
             msg['args']['credential']['user'],
             msg['args']['credential']['key'],
             msg['args']['credential']['auth'])
-
         self.messaging.phone_home(result)
-
 
     def get_system_info(self):
         """ This calls the method to get system OS information """
@@ -194,14 +193,14 @@ class SmartAgent:
         return result
 
     def process_message(self, msg):
-        """Performs actual agent work.  Called by on_request() whenever
+        """Performs actual agent work. Called by on_request() whenever
            a message is received, and calls the appropriate function based
            on the contents of the method key in the message.
 
-           Arguments:   self
-                        msg -- A dictionary representation of a JSON object
+           Arguments: self
+           msg -- A dictionary representation of a JSON object
            Return type: A dictionary of {result of method execution,
-                        failure code (default for each is None)}"""
+           failure code (default for each is None)}"""
 
         result = None
         failure = None
@@ -221,7 +220,7 @@ class SmartAgent:
             self.logger.error('Message missing "method" element: %s', msg)
             return {'result': result, 'failure': 'missing_method'}
         self.logger.debug ('Dispatching %s', method)
-        #  internal API
+        # internal API
         if method == 'create_instance':
             result = self.create_database_instance(msg)
         elif method == 'delete_instance':
