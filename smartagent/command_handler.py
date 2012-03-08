@@ -403,12 +403,13 @@ class MysqlCommandHandler:
 #                    'auth_version' : '1.0'}
 
             try:
-                cont = swift.st_get_container(opts, container)
-                if not len(cont):
+#                cont = swift.st_get_container(opts, container)
+#                if not len(cont):
                     # create container
-                    swift.st_create_container(opts, container)
+                swift.st_create_container(opts, container)
                 swift.st_upload(opts, container, tar_result)
-            except (swift.ClientException, HTTPException, socket.error), err:
+#            except (swift.ClientException, HTTPException, socket.error), err:
+            except (HTTPException, socket.error), err:
                 LOG.error('Failed to upload snapshot to swift: %s', err)
                 return self.get_response_body_for_create_snapshot(container,
                     path_specifier,
