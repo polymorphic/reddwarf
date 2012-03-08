@@ -106,13 +106,22 @@ useradd -m -g $gid nova
 cd /home/nova
 sudo mkdir lock
 sudo mkdir logs
+
+mkdir /var/lib/mysql-backup
+chown nova:mysql /var/lib/mysql-backup
+
 sudo git clone https://github.com/hpcloud/reddwarf.git
+
+chown nova:mysql -R /home/nova/
 
 # Create a .my.cnf for the Agent
 echo "[client]
-user=root
+user=os_admin
 password=hpcs
 " > /home/nova/.my.cnf
+
+echo 'export PYTHONPATH=/home/nova/reddwarf/swiftapi' >> /root/.bashrc
+source /root/.bashrc
 
 ln -s /home/nova/.my.cnf /root/.my.cnf
 
