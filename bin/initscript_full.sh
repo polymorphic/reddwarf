@@ -92,6 +92,14 @@ chown -R mysql:mysql /var/lib/mysql
 # this WILL be dynamic
 /usr/bin/mysql -u root -phpcs -e "grant all privileges on *.* to 'root'@'%' identified by 'hpcs' with grant option;"
 
+# change root/admin password
+/usr/bin/mysqladmin -u root password hpcs 
+# create agent DB account
+# TODO: get privileges set up so agent can't read user, vice versa
+/usr/bin/mysql -u root -phpcs -e "grant all privileges on *.* to 'os_admin'@'localhost' identified by 'hpcs' with grant option;"
+# create user account. TODO: this will be passed via the API
+/usr/bin/mysql -u root -phpcs -e "grant all privileges on *.* to 'dbas'@'%' identified by 'hpcs' with grant option;"
+
 apt-get install -qqy git
 gid="$(getent passwd mysql | cut -f4 -d:)"
 useradd -m -g $gid nova

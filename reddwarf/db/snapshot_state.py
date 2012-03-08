@@ -20,7 +20,7 @@ from reddwarf.util.enum import enum
 
 """States of snapshots"""
 SnapshotState = enum(
+    COMPLETED=0,
     INPROGRESS=1,
-    COMPLETED=2,
-    FAILED=3,
-    DELETED=4)
+    DELETED=2,
+    FAILED=3)

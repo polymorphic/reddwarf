@@ -64,7 +64,7 @@ class ViewBuilder(object):
         instance['port'] = 3306
                 
         # Default credentials on Database Create
-        credentials = { 'username' : 'root',
+        credentials = { 'username' : 'dbas',
                         'password' : 'hpcs'
                       }
         if create:
