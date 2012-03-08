@@ -51,6 +51,7 @@ class SmartAgent:
         # get snapshot config if any
         self.snapshot_conf = self._load_config("snapshot")  #TODO: hardcoded name
         self.agent_username = 'os_admin'  #TODO: hardcoded name
+        self.test_username = 'dbas'  #TODO: it needs to be passed from API Server
 
     def _load_config(self, section):
         result = {}
@@ -137,7 +138,7 @@ class SmartAgent:
     def reset_password(self, msg):
         """ This calls the method that changes the user password """
         result = self.handler.reset_user_password(
-            self.agent_username, msg['args']['password'])
+            self.test_username, msg['args']['password'])
         return result
 
     def create_user(self, msg):
