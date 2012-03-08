@@ -99,6 +99,16 @@ class TestCase(unittest.TestCase):
         self.assertEqual(response.status_int, error_type().code)
         self.assertIn(expected_error, response.body)
         
+    def assertDictKeysEqual(self, dict1, dict2):
+        self._assertDictKeysEqual(dict1, dict2)
+        self._assertDictKeysEqual(dict2, dict1)
+
+    def _assertDictKeysEqual(self, dict1, dict2):
+        for k, v in dict1.items():
+            self.assertIn(k, dict2)
+            if type(v) is dict:
+                self._assertDictKeysEqual(v, dict2[k])
+        
 class DBTestCase(TestCase):
     def setUp(self):
         super(DBTestCase, self).setUp()

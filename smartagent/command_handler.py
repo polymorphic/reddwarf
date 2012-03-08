@@ -409,6 +409,7 @@ class MysqlCommandHandler:
                     swift.st_create_container(opts, container)
                 swift.st_upload(opts, container, tar_result)
             except (swift.ClientException, HTTPException, socket.error), err:
+#            except (HTTPException, socket.error), err:
                 LOG.error('Failed to upload snapshot to swift: %s', err)
                 return self.get_response_body_for_create_snapshot(container,
                     path_specifier,
