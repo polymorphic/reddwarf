@@ -114,7 +114,7 @@ password=hpcs
 ln -s /home/nova/.my.cnf /root/.my.cnf
 
 cd /home/nova
-git clone git clone git@github.com:hpcloud/reddwarf.git
+git clone https://github.com/hpcloud/reddwarf.git
 #cp /home/nova/reddwarf/smartagent/startup/disk_prep /etc/init.d
 #cp /home/nova/reddwarf/smartagent/startup/smartagent /etc/init.d
 #cp /home/nova/reddwarf/smartagent/startup/mysql.conf /etc/init.d
