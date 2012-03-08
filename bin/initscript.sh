@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# stop mysql
-service mysql stop
+# make sure emphemeral is NOT mounted
+umount /dev/vdb
+umount /mnt
+
+# stop mysql. There is not yet an upstart script so uses init script
+/etc/init.d/mysql stop
 
 # back up data directory
 mv /var/lib/mysql /var/lib/mysql.bak
@@ -31,32 +35,37 @@ lvcreate --size 20G --name mysql-data data
 # format
 mkfs.xfs /dev/data/mysql-data
 
+# get mount point into fstab
+echo -e "\n/dev/data/mysql-data\t/var/lib/mysql\txfs\tdefaults\t0\t0\n" >> /etc/fstab
+
 # create mount point
 mkdir /var/lib/mysql
 
+# mount
+mount -a 
+
 # copy data from backup
-cp -a /var/lib/mysql.bak /var/lib/mysql
+cp -a /var/lib/mysql.bak/* /var/lib/mysql
 
 # change ownership
 chown mysql:mysql /var/lib/mysql
 
-# get mount point into fstab
-echo -e "\n/dev/data/mysql-data\t/var/lib/mysql\txfs\tdefaults\t0\t0\n" >> /etc/fstab
-
-# mount
-mount -a 
- 
 # start
 /etc/init.d/mysql start
 
 cd /home/nova
 sudo git clone https://github.com/hpcloud/reddwarf.git
-cp /home/nova/reddwarf/smartagent/startup/disk_prep /etc/init.d
-cp /home/nova/reddwarf/smartagent/startup/smartagent /etc/init.d
+# HACK ALERT! FIX THIS!
+ln -s /home/nova/reddwarf/swiftapi/swift.py /home/nova/reddwarf/smartagent/swift.py
+#cp /home/nova/reddwarf/smartagent/startup/smartagent /etc/init.d
+# HACK ALERT! FIX THIS!
+ln -s /home/nova/reddwarf/smartagent/smartagent_launcher.py /etc/init.d/smartagent 
 cp /home/nova/reddwarf/smartagent/startup/mysql.conf /etc/init.d
 cp /home/nova/reddwarf/smartagent/startup/sudoers /etc
-update-rc.d disk_prep defaults 85
-update-rc.d smart_agent defaults 90
+update-rc.d smartagent defaults 90
+update-rc.d -f mysql remove
+rm /etc/init.d/mysql
+
 
 # make sure nova owns
 chown -R nova:mysql /home/nova
@@ -70,6 +79,5 @@ chown -R nova:mysql /home/nova
 #" > /home/nova/agent.config
 ##########################
 
-cd reddwarf
-ln -s /home/nova/reddwarf/smartagent/smartagent_launcher.py /etc/init.d/smartagent
+cd /home/nova/reddwarf
 sudo /etc/init.d/smartagent start

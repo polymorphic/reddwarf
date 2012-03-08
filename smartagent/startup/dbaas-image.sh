@@ -20,9 +20,9 @@ apt-get --force-yes --yes install lvm2 xfsprogs xfsdump
 # percona
 apt-get --force-yes --yes install percona-server-common-5.5  percona-server-server-5.5 percona-server-test-5.5  percona-server-client-5.5 libmysqlclient18  libmysqlclient-dev xtrabackup
 # python
-apt-get --force-yes --yes install python-swift swift policycoreutils python-mysqldb python-nova libdbd-mysql-perl libdbi-perl python-pip python-dev
+apt-get --force-yes --yes install python-pip python-swift swift policycoreutils python-mysqldb python-nova libdbd-mysql-perl libdbi-perl python-pip python-dev
 # git
-apt-get install -qqy git
+apt-get install --force-yes --yes git
 # python pip installs
 pip install --upgrade pika
 pip install --upgrade amqplib
@@ -42,7 +42,7 @@ sed -i '$d' /etc/fstab
 # TODO: get privileges set up so agent can't read user, vice versa
 /usr/bin/mysql -u root -phpcs -e "grant all privileges on *.* to 'os_admin'@'localhost' identified by 'hpcs' with grant option;"
 # create user account. TODO: this will be passed via the API
-/usr/bin/mysql -u root -phpcs -e "grant all privileges on *.* to 'dbas'@'localhost' identified by 'hpcs' with grant option;"
+/usr/bin/mysql -u root -phpcs -e "grant all privileges on *.* to 'dbas'@'%' identified by 'hpcs' with grant option;"
 
 # now shut down because we have changed the innodb log file size
 # and when we restart, it would otherwise report and error
@@ -84,6 +84,9 @@ mkdir /home/nova/backup_logs
 chown nova:mysql -R /home/nova/
 mkdir /var/lib/mysql-backup
 chown nova:mysql /var/lib/mysql-backup
+
+echo "export PYTHONPATH=/home/nova/reddwarf/swiftapi" >> /home/nova/.bashrc
+echo "export PYTHONPATH=/home/nova/reddwarf/swiftapi" >> /root/.bashrc
 
 # stop, because we want to make an image
 /etc/init.d/mysql stop
