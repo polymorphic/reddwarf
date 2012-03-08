@@ -146,7 +146,7 @@ class MysqlCommandHandler:
 
     # TODO: user password, not the root user - make sure to not change root user password
     def reset_user_password(self,
-                            username='do not default!',
+                            username='dbas',
                             newpassword='something'):
         """ reset the user's password """
         
