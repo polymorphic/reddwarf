@@ -84,6 +84,7 @@ class ViewBuilder(object):
     def build_single(self, db_snapshot, req):
         """Build the response for a snapshot detail call"""
         snapshot = self._build_basic(db_snapshot, req)
+        snapshot = self._build_detail(db_snapshot, snapshot)
         return snapshot
 
     @staticmethod
