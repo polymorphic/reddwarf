@@ -4,8 +4,8 @@
 umount /dev/vdb
 umount /mnt
 
-# stop mysql. There is not yet an upstart script so uses init script
-/etc/init.d/mysql stop
+# stop mysql.
+service mysql stop
 
 # back up data directory
 mv /var/lib/mysql /var/lib/mysql.bak
@@ -51,24 +51,10 @@ cp -a /var/lib/mysql.bak/* /var/lib/mysql
 chown mysql:mysql /var/lib/mysql
 
 # start
-/etc/init.d/mysql start
+service mysql start
 
-cd /home/nova
-sudo git clone https://github.com/hpcloud/reddwarf.git
-# HACK ALERT! FIX THIS!
-ln -s /home/nova/reddwarf/swiftapi/swift.py /home/nova/reddwarf/smartagent/swift.py
-#cp /home/nova/reddwarf/smartagent/startup/smartagent /etc/init.d
-# HACK ALERT! FIX THIS!
-ln -s /home/nova/reddwarf/smartagent/smartagent_launcher.py /etc/init.d/smartagent 
-cp /home/nova/reddwarf/smartagent/startup/mysql.conf /etc/init.d
-cp /home/nova/reddwarf/smartagent/startup/sudoers /etc
-update-rc.d smartagent defaults 90
-update-rc.d -f mysql remove
-rm /etc/init.d/mysql
-
-
-# make sure nova owns
-chown -R nova:mysql /home/nova
+cd /home/nova/reddwarf
+git pull
 
 ######## TEMPORARY agent.config file ########
 #echo "[messaging]
@@ -79,5 +65,4 @@ chown -R nova:mysql /home/nova
 #" > /home/nova/agent.config
 ##########################
 
-cd /home/nova/reddwarf
 sudo /etc/init.d/smartagent start
