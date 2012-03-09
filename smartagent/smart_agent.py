@@ -47,7 +47,6 @@ class SmartAgent:
             self.messaging = MessagingService(host_address=mq_conf['rabbit_host'])
         self.messaging.callback = self.process_message
         # others
-        self.checker = MySqlChecker()
         self.handler = MysqlCommandHandler()
         # get snapshot config if any
         self.snapshot_conf = self._load_config("snapshot") #TODO: hardcoded name
@@ -69,10 +68,9 @@ class SmartAgent:
                 result[option] = None
         return result
 
-    def __get_mysql_status(self):
+    def _get_mysql_status(self):
         """ This calls the method to check MySQL's running status """
-        if self.checker.check_if_running(sleep_time_seconds=3,
-            number_of_checks=5):
+        if self.handler.is_mysql_running():
             return str(ResultState.RUNNING)
         else:
             return str(ResultState.NOSTATE)
@@ -84,7 +82,9 @@ class SmartAgent:
 
             hostname = os.uname()[1]
             message = {"method": "update_instance_state",
-                       "args": {'hostname': hostname, 'state': self.__get_mysql_status()}}
+                       "args": {'hostname': hostname,
+                                'state': self._get_mysql_status()
+                       }}
             try:
                 self.messaging.phone_home(message)
                 self.logger.debug('Initial DB status checked and phone home message sent: %s', message)
@@ -122,7 +122,12 @@ class SmartAgent:
 
     def create_database(self, msg):
         """ This calls the method that deletes a database schema"""
-        result = self.handler.create_database(msg['args']['database'])
+        database_name = msg['args']['database']
+        if database_name:
+            result = self.handler.create_database(database_name)
+        else:
+            self.logger.error('Missing database name in %s', str(msg['args']))
+            result = ResultState.FAILED
         return result
 
     def restart_database(self, msg):
@@ -242,7 +247,7 @@ class SmartAgent:
         elif method == 'apply_snapshot':
             result = self.apply_database_snapshot(msg)
         elif method == 'check_mysql_status':
-            result = self.__get_mysql_status()
+            result = self._get_mysql_status()
         elif method == 'check_system_status':
             result = self.get_system_info()
         else:

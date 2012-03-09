@@ -58,11 +58,15 @@ class MySqlChecker:
         except IOError as io_exception:
             LOG.debug('Exception caught while opening PID file; %s',
                 str(io_exception))
-            return self.__findPid('mysqld')
+            return self._findPid('mysqld')
         else:
             return pid_string
 
-    def __findPid(self, proc_name):
+    def _findPid(self, proc_name):
+        """
+        This method is a fallback for obtaining mysqld's PID when the
+        .pid file cannot be read
+        """
         ps = subprocess.Popen("ps ax -o pid= -o state= -o command=", shell=True, stdout=subprocess.PIPE)
         ps_pid = ps.pid
         output = ps.stdout.read()

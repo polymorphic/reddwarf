@@ -23,11 +23,6 @@ import daemon
 import _mysql  # see http://mysql-python.sourceforge.net/MySQLdb.html
 from singleton import Singleton
 import logging
-logging.basicConfig()
-
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
-
 
 @Singleton
 class DatabaseManager:
@@ -37,7 +32,9 @@ class DatabaseManager:
     def __init__(self,
                  host_name='localhost',
                  database_name='mysql',
-                 config_file='~/.my.cnf'):
+                 config_file='.my.cnf',
+                 logger=logging.getLogger(__name__)):
+        self.logger = logger
         self.host_name = host_name
         self.database_name = database_name
         self.config_file = config_file
@@ -48,16 +45,15 @@ class DatabaseManager:
 
     def open_connection(self):
         if self._database_connection:
-            LOG.debug("Database connection already opened")
+            self.logger.debug("Database connection already opened")
             return  # already connected
         try:
-            LOG.debug('Connecting to database')
+            self.logger.debug('Connecting to database')
             connection = _mysql.connect(host=self.host_name,
                 db=self.database_name,
                 read_default_file=self.config_file)
-        except Exception:
-            LOG.error('Error connecting to the database: %s',
-                str(sys.exc_info()[0]))
+        except Exception as ex:
+            self.logger.error('Error connecting to the database: %s', ex)
         else:
             self._database_connection = connection
         return
@@ -66,9 +62,9 @@ class DatabaseManager:
         if self._database_connection:
             try:
                 self._database_connection.close()
-            except Exception:
-                LOG.error('Error closing database connection: %s',
-                    str(sys.exc_info()[0]))
+            except Exception as ex:
+                self.logger.error('Error closing database connection: %s',
+                    ex)
                 return False
             else:
                 return True
@@ -88,15 +84,19 @@ class DatabaseManager:
         try:
             for command in commands:
                 self._database_connection.query(command)
-        except Exception:
-            LOG.error('Database error while executing %s: %s',
-                command, str(sys.exc_info()[0]))
-        return
+        except Exception as ex:
+            self.logger.error('Database error while executing %s: %s',
+                command, ex)
+            return False
+        else:
+            return True
 
 def main():
     """ main program """
+    logging.basicConfig(level=logging.DEBUG)
     persistence_agent = DatabaseManager(host_name='localhost',
-                        database_name='information_schema', config_file='~/.my.cnf')
+        database_name='information_schema',
+        config_file='~/.my.cnf')
     if persistence_agent.open_connection():
         print "Database connected"
 
