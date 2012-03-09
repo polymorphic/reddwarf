@@ -36,3 +36,4 @@ paramiko
 feedparser
 pexpect
 beaker
+openstack.nose_plugin

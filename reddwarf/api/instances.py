@@ -157,6 +157,8 @@ class Controller(object):
         
         internal_id = dbapi.internalid_from_uuid(id)
         LOG.debug("Remote ID: " + str(internal_id))
+        if not internal_id:
+            return exc.HTTPNotFound()
         
         LOG.debug("Deleting instance %d" % int(internal_id))
         try:
