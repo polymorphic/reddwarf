@@ -55,6 +55,7 @@ service mysql start
 
 cd /home/nova/reddwarf
 git pull
+git checkout 0.4.0
 
 ######## TEMPORARY agent.config file ########
 #echo "[messaging]
