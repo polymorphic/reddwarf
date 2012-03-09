@@ -36,3 +36,5 @@ paramiko
 feedparser
 pexpect
 beaker
+openstack.nose_plugin
+iso8601
