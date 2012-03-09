@@ -40,3 +40,5 @@ integration/vagrant/report/*
 networks/
 nosetests.xml
 .settings
+.tox/
+.cache/
