@@ -39,6 +39,15 @@ try:
 except ImportError:
     from httplib import HTTPException, HTTPSConnection
 
+
+def random_string(size=6):  # TODO: move to utils.py
+    """ Generate a random string to be used for password """
+    # string to use
+    chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    # join random chars of size N and return
+    return ''.join(random.choice(chars) for x in range(size))
+
+
 class MysqlCommandHandler:
     """ Class for passing commands to mysql """
     
@@ -506,14 +515,6 @@ class MysqlCommandHandler:
         cnf_file_name = os.path.join(paths.mycnf_base, paths.mysql_config_file)
         with open (cnf_file_name, 'w') as mycf:
             mycf.write( "[client]\nuser={}\npassword={}" . format(user, password))
-
-
-def random_string(size=6):  # TODO: move to utils.py
-    """ Generate a random string to be used for password """
-    # string to use
-    chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    # join random chars of size N and return
-    return ''.join(random.choice(chars) for x in range(size))
 
 
 def main():
