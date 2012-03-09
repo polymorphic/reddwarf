@@ -124,14 +124,14 @@ class OSClientTests(unittest.TestCase):
     
     def test_delete_instance(self):
         """Test a successful delete instance call"""
-        
+
         self.novaClient.servers.delete(1).AndReturn(202)
         self.mox.ReplayAll()
-        
+
         self.nClient.servers = self.novaClient.servers
         self.osclient = OSClient("username", "password", "apikey", "url", region_name="return")
         result = self.osclient.delete(1)
-        
+
         self.assertEqual(202, result)
         self.mox.VerifyAll()
     
@@ -140,11 +140,11 @@ class OSClientTests(unittest.TestCase):
                 
         self.novaClient.servers.reboot(1).AndReturn(202)
         self.mox.ReplayAll()
-        
+
         self.nClient.servers = self.novaClient.servers
         self.osclient = OSClient("username", "password", "apikey", "url", region_name="return")
         result = self.osclient.restart(1)
-        
+
         self.assertEqual(202, result)
         self.mox.VerifyAll()
         
@@ -153,7 +153,7 @@ class OSClientTests(unittest.TestCase):
         
         self.novaClient.servers.get(1).AndReturn(202)
         self.mox.ReplayAll()
-        
+
         self.nClient.servers = self.novaClient.servers
         self.osclient = OSClient("username", "password", "apikey", "url", region_name="return")
         result = self.osclient.show(1)
