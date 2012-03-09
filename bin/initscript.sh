@@ -54,8 +54,7 @@ chown mysql:mysql /var/lib/mysql
 service mysql start
 
 cd /home/nova/reddwarf
-git pull
-git checkout 0.4.1
+git fetch && git checkout production
 
 ######## TEMPORARY agent.config file ########
 #echo "[messaging]
