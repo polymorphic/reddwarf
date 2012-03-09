@@ -335,7 +335,7 @@ class DBFunctionalTests(unittest.TestCase):
         req = httplib2.Http(".cache")
          
         # Delete all orphaned instances
-        LOG.debug("\n\n - Deleting orphaned instances:")
+        LOG.debug("- Deleting orphaned instances:")
         resp, content = req.request(API_URL + "instances", "GET", "", AUTH_HEADER)
         content = json.loads(content)
         
@@ -347,7 +347,7 @@ class DBFunctionalTests(unittest.TestCase):
                 LOG.debug(content) 
            
         # Delete all orphaned snapshots belonging to any orphaned instance
-        LOG.debug("\n\n - Deleting orphaned snapshots:")
+        LOG.debug("- Deleting orphaned snapshots:")
         resp, content = req.request(API_URL + "snapshots", "GET", "", AUTH_HEADER)        
         content = json.loads(content)
         
