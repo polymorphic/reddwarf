@@ -40,10 +40,8 @@ def reset_database():
         os.remove(testinit.database_file)
     shutil.copy(testinit.clean_db, testinit.database_file)
 
-
 def db_sync():
     migration.db_sync()
-
 
 def wsgi_app(fake_auth=True, fake_auth_context=None,
              router_app=reddwarf.api.APIRouter):

@@ -52,7 +52,6 @@ from reddwarf.api import storage
 from reddwarf.api import users
 from reddwarf.api import flavors
 from reddwarf.api import versions
-from reddwarf.api import demo
 
 LOG = logging.getLogger('reddwarf.api')
 FLAGS = flags.FLAGS
@@ -202,21 +201,6 @@ class APIRouter(wsgi.Router):
         mapper.connect("/{project_id}/instances/{instance_id}/restart",
                        controller=instances.create_resource(),
                        action="restart_compute_instance", conditions=dict(method=["POST"]))
-
-        # the following endpoints are only for HPCS internal E2E demo
-        mapper.connect("/{project_id}/instances/{instance_id}/demo/checkstatus",
-            controller=demo.create_resource(),
-            action="check_mysql_status", conditions=dict(method=["GET"]))
-
-        mapper.connect("/{project_id}/instances/{instance_id}/demo/createsnapshot",
-            controller=demo.create_resource(),
-            action="create_snapshot", conditions=dict(method=["POST"]))
-
-        mapper.connect("/{project_id}/instances/{instance_id}/demo/applysnapshot",
-            controller=demo.create_resource(),
-            action="apply_snapshot", conditions=dict(method=["POST"]))
-        # demo endpoints ended 
-
 
         mapper.connect("/", controller=versions.create_resource(),
                        action="dispatch")

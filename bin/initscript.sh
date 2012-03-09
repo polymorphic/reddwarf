@@ -1,6 +1,10 @@
 #!/bin/bash
 
-# stop mysql
+# make sure emphemeral is NOT mounted
+umount /dev/vdb
+umount /mnt
+
+# stop mysql.
 service mysql stop
 
 # back up data directory
@@ -31,35 +35,27 @@ lvcreate --size 20G --name mysql-data data
 # format
 mkfs.xfs /dev/data/mysql-data
 
+# get mount point into fstab
+echo -e "\n/dev/data/mysql-data\t/var/lib/mysql\txfs\tdefaults\t0\t0\n" >> /etc/fstab
+
 # create mount point
 mkdir /var/lib/mysql
 
+# mount
+mount -a 
+
 # copy data from backup
-cp -a /var/lib/mysql.bak /var/lib/mysql
+cp -a /var/lib/mysql.bak/* /var/lib/mysql
 
 # change ownership
 chown mysql:mysql /var/lib/mysql
 
-# get mount point into fstab
-echo -e "\n/dev/data/mysql-data\t/var/lib/mysql\txfs\tdefaults\t0\t0\n" >> /etc/fstab
-
-# mount
-mount -a 
- 
 # start
-/etc/init.d/mysql start
+service mysql start
 
-cd /home/nova
-sudo git clone https://github.com/hpcloud/reddwarf.git
-cp /home/nova/reddwarf/smartagent/startup/disk_prep /etc/init.d
-cp /home/nova/reddwarf/smartagent/startup/smartagent /etc/init.d
-cp /home/nova/reddwarf/smartagent/startup/mysql.conf /etc/init.d
-cp /home/nova/reddwarf/smartagent/startup/sudoers /etc
-update-rc.d disk_prep defaults 85
-update-rc.d smart_agent defaults 90
-
-# make sure nova owns
-chown -R nova:mysql /home/nova
+cd /home/nova/reddwarf
+git pull
+git checkout 0.4.1
 
 ######## TEMPORARY agent.config file ########
 #echo "[messaging]
@@ -70,6 +66,4 @@ chown -R nova:mysql /home/nova
 #" > /home/nova/agent.config
 ##########################
 
-cd reddwarf
-ln -s /home/nova/reddwarf/smartagent/smartagent_launcher.py /etc/init.d/smartagent
 sudo /etc/init.d/smartagent start
