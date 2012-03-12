@@ -17,6 +17,7 @@ import logging
 import os
 from subprocess import call
 import time
+import sys
 from result_state import ResultState
 from check_mysql_status import MySqlChecker
 from command_handler import MysqlCommandHandler
@@ -102,11 +103,13 @@ class SmartAgent:
             except Exception as err:
                 self.logger.error("Failed to connect to MQ due to channel not available: %s", err)
         # start listening and consuming rpc messages from API Server
-        try:
-            self.messaging.start_consuming()
-        except Exception as err:
-            self.logger.error("Error processing RPC request: %s", err)
-            pass
+        while True:
+            try:
+                self.messaging.start_consuming()
+            except Exception as err:
+                self.logger.fatal("Error processing RPC request; last error: %s",
+                    str(sys.exc_info()[0]))
+                self.logger.error("Restarting start_consuming")
 
     def create_database_instance(self, msg):
         """ This will call the method that creates a database instance"""
